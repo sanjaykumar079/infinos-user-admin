@@ -13,6 +13,8 @@ import axios from "axios";
 import { responsiveProperty } from "@mui/material/styles/cssUtils";
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { supabase } from "./supabaseClient";
+
 
 const PinkSwitch = styled(Switch)(({ theme }) => ({
     '& .MuiSwitch-switchBase.Mui-checked': {
@@ -37,11 +39,37 @@ function Devices(){
     }
 
     useEffect(() => {
-        axios.get("/device/").then(res =>{
-            console.log(res.data,"hello")
-            setDevices(res.data) ;
-        })
-      }, []);
+      async function fetchDevices() {
+        try {
+          // 1️⃣ Get the currently logged-in user from Supabase
+          const { data: { user }, error } = await supabase.auth.getUser();
+
+          if (error) {
+            console.error("Error getting Supabase user:", error.message);
+            return;
+          }
+
+          if (!user) {
+            console.log("No logged-in user found");
+            return;
+          }
+
+          // 2️⃣ Call backend with this user's id as ownerId
+          const res = await axios.get("/device/my-devices", {
+            params: { ownerId: user.id },   // this becomes ?ownerId=<user.id>
+          });
+
+          // 3️⃣ Save devices in React state
+          setDevices(res.data);
+          console.log("User devices:", res.data);
+        } catch (err) {
+          console.error("Error fetching user devices:", err);
+        }
+      }
+
+      fetchDevices();
+    }, []);  // empty dependency array: runs once when component mounts
+
 
     const changeStatus = (index) => (event) => {
         console.log(index,"hello") ;
@@ -57,33 +85,54 @@ function Devices(){
         })
     };
 
-    function AddDevice(e){
-          let name=window.prompt("Enter Name of Device") ;
-          if(name==="" || name===null){
-            alert("Name of Device cannot be empty") ;
-          }
-          else{
-                const newDevice = {
-                    name:name,
-                    status:false,
-                    heating:[],
-                    cooling:[],
-                    battery:[],
-                    safety_low_temp:0,
-                    safety_high_temp:100,
-                    bag_temp:25
-                }
-                axios.post("/device/add_device",newDevice).then(res=>{
-                    axios.get("/device/").then(resp =>{
-                        setDevices(resp.data) ;
-                    }).catch(err=>{
-                        console.log(err) ;
-                    })
-                }).catch(err=>{
-                    console.log(err) ;
-                })
-          }
+    async function AddDevice(e) {
+      let name = window.prompt("Enter Name of Device");
+      if (!name) {
+        alert("Name of Device cannot be empty");
+        return;
       }
+  
+      // ✅ Get current logged-in user from Supabase
+      const { data, error } = await supabase.auth.getUser();
+  
+      if (error) {
+        console.error("Error getting user from Supabase:", error.message);
+        alert("Could not get logged-in user. Please re-login.");
+        return;
+      }
+  
+      const user = data.user;      // ✅ now 'user' is defined here
+  
+      if (!user) {
+        alert("No user logged in");
+        return;
+      }
+  
+      // ✅ Attach ownerId to device
+      const newDevice = {
+        name: name,
+        status: false,
+        heating: [],
+        cooling: [],
+        battery: [],
+        safety_low_temp: 0,
+        safety_high_temp: 100,
+        bag_temp: 25,
+        ownerId: user.id,          // ✅ this now works
+      };
+  
+      try {
+        await axios.post("/device/add_device", newDevice);
+    
+        // (optional) refresh device list for this user
+        const res = await axios.get("/device/my-devices", {
+          params: { ownerId: user.id },
+        });
+        setDevices(res.data);
+      } catch (err) {
+        console.error("Error adding device:", err);
+      }
+    }
 
       const DownloadLogs = (index) => (e)=>{
         e.stopPropagation()

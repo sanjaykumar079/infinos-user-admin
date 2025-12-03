@@ -17,6 +17,30 @@ router.get("/", function(req, res) {
 	})
 });
 
+// GET /device/summary?ownerId=<supabaseUserId>
+router.get("/summary", async (req, res) => {
+  const ownerId = req.query.ownerId;
+
+  try {
+    const myDevices = await Device.find({ ownerId });
+
+    const total = myDevices.length;
+    const online = myDevices.filter(d => d.status === true).length;
+    const offline = total - online;
+
+    // you can later add alert logic
+    res.json({
+      totalDevices: total,
+      onlineDevices: online,
+      offlineDevices: offline,
+      devices: myDevices,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).send(err);
+  }
+});
+
 router.post("/add_device", (req, res) => {
     const newDevice = new Device({
         name: req.body.name,
@@ -26,7 +50,9 @@ router.post("/add_device", (req, res) => {
 		battery: req.body.battery,
 		safety_low_temp: req.body.safety_low_temp,
 		safety_high_temp:req.body.safety_high_temp,
-		bag_temp:req.body.bag_temp
+		bag_temp:req.body.bag_temp,
+		ownerId: req.body.ownerId,       // 👈 add this line
+        deviceCode: req.body.deviceCode 
     });
     console.log(newDevice) ;
     newDevice.save()
@@ -36,6 +62,22 @@ router.post("/add_device", (req, res) => {
         .catch(err => {
             res.status(400).send(err);
         });
+});
+
+// ✅ Get only devices that belong to a specific user
+router.get("/my-devices", async (req, res) => {
+  const ownerId = req.query.ownerId;  // read from URL query ?ownerId=...
+
+  try {
+    // Find all devices where ownerId == this user's id
+    const devices = await Device.find({ ownerId });
+
+    // Send them back as JSON array
+    res.status(200).json(devices);
+  } catch (err) {
+    console.error("Error fetching user-specific devices:", err);
+    res.status(500).json({ message: "Server error", error: err });
+  }
 });
 
 router.post("/add_heater",(req,res)=>{
@@ -324,14 +366,6 @@ router.post("/update_battery_charge",(req,res)=>{
 		res.status(400).send(err);
 	});	
 })
-
-
-
-
-
-
-
-
 
 module.exports = router ;
 

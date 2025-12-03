@@ -1,33 +1,35 @@
+// server.js
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const mongoose = require('mongoose');
+
 const PORT = 4000;
-const DB_NAME = "INFINOS"
+const DB_NAME = "sanju"; // your new DB name
 
 // routes
-var testAPIRouter = require("./routes/testAPI");
-var DeviceRouter = require("./routes/Device");
+const testAPIRouter = require("./routes/testAPI");
+const DeviceRouter = require("./routes/Device");
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Connection to MongoDB
+// ✅ Updated Mongo URI (connects to the new cluster & DB)
+const MONGO_URI = `mongodb+srv://sanju:sanju@cluster0.rl6u4ea.mongodb.net/${DB_NAME}?retryWrites=true&w=majority&appName=Cluster0`;
 
+mongoose
+  .connect(MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log("✅ MongoDB Atlas connection established successfully!"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// Connection to MongoDB
-mongoose.connect('mongodb+srv://sanjay_infinos:Sanjay999@cluster0.trn1uwi.mongodb.net/' + DB_NAME, { useNewUrlParser: true });
-const connection = mongoose.connection;
-connection.once('open', function() {
-    console.log("MongoDB database connection established successfully !");
-})
-
-// setup API endpoints
+// routes
 app.use("/testAPI", testAPIRouter);
 app.use("/device", DeviceRouter);
 
-app.listen(PORT, function() {
-    console.log("Server is running on Port: " + PORT);
-});
+// start server
+app.listen(PORT, () => console.log(`🚀 Server is running on Port: ${PORT}`));

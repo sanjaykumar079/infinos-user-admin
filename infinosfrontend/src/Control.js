@@ -1,3 +1,4 @@
+// ...existing code...
 import "./Control.css" 
 import logo from"./images/logo_black.svg"
 import { useEffect, useState } from "react";
@@ -31,7 +32,6 @@ const PinkSwitch = styled(Switch)(({ theme }) => ({
     },
   }));
 
-
 function Control(){
     const [control,Setcontrol] = useState(true) ;
     const [analysis,Setanalysis] = useState(false) ;
@@ -45,119 +45,104 @@ function Control(){
     const [BatteryChartData,setBatteryChartData] = useState([]) ;
     const navigate = useNavigate() ;
 
+    // helper to safely get last entry values from arrays
+    const safeLast = (arr, key, fallback = 0) => {
+        if (!Array.isArray(arr) || arr.length === 0) return fallback;
+        const last = arr[arr.length - 1];
+        if (last == null) return fallback;
+        if (!key) return last;
+        return (last[key] ?? fallback);
+    };
+
     const get_data = () =>{
         var device_id=localStorage.getItem('deviceid') ;
-        console.log(device_id) ;
         const devinfo={
             device_id:device_id
         }
         axios.get("/device/get_device",{params:{device_id:device_id}}).then(res=>{
             SetDevice(res.data) ;
-            console.log(res.data) ;
-            var heater_ids=res.data.heating ;
-            var cooler_ids=res.data.cooling ;
-            var battery_ids=res.data.battery ;
+            var heater_ids=res.data.heating || [] ;
+            var cooler_ids=res.data.cooling || [] ;
+            var battery_ids=res.data.battery || [] ;
             axios.get("/device/get_heaters",{params:{heater_ids:heater_ids}}).then(res1=>{
-                SetHeating(res1.data) ;
-                var n = res1.data.length ;
+                const heaters = Array.isArray(res1.data) ? res1.data : [];
+                SetHeating(heaters) ;
                 const Heatplots=[]
-                for(var i=0;i<n;i++){
-                    var vals=[] ;
-                    var len=res1.data[i].observed_temp.length ;
-                    var cnt=0 ;
+                for(let i=0;i<heaters.length;i++){
+                    const obs = Array.isArray(heaters[i].observed_temp) ? heaters[i].observed_temp : [];
+                    const vals=[]
                     const labels=[]
-                    for(var j=len-1;j>=0;j--){
-                        vals.push(res1.data[i].observed_temp[j]["obs_temp"]) ;
-                        labels.push(res1.data[i].observed_temp[j]["Date"])
-                        cnt=cnt+1 ;
-                        if(cnt>=8){
-                            break ;
-                        }
+                    let cnt=0
+                    for(let j=obs.length-1;j>=0 && cnt<8;j--){
+                        const entry = obs[j] || {};
+                        vals.push(entry.obs_temp ?? 0) ;
+                        labels.push(entry.Date ?? "") ;
+                        cnt++ ;
                     }
-                    vals.reverse() ;
-                    labels.reverse() ;
-                    var heatplot = {
-                        labels:labels,
-                        datasets:[
-                        {
-                            data: vals,
-                            label:"Obseved Temperature"
-                        }
-                    ]
-                    } ;
-                    Heatplots.push(heatplot) ;
+                    vals.reverse();
+                    labels.reverse();
+                    Heatplots.push({
+                        labels,
+                        datasets:[{ data: vals, label:"Observed Temperature" }]
+                    });
                 }
                 setHeatChartData(Heatplots) ;
                 axios.get("/device/get_coolers",{params:{cooler_ids:cooler_ids}}).then(res2=>{
-                    SetCooling(res2.data) ;
-                    var n = res2.data.length ;
-                    const Heatplots=[]
-                    for(var i=0;i<n;i++){
-                        var vals=[] ;
-                        var len=res2.data[i].observed_temp.length ;
-                        var cnt=0 ;
+                    const coolers = Array.isArray(res2.data) ? res2.data : [];
+                    SetCooling(coolers) ;
+                    const Coolplots=[]
+                    for(let i=0;i<coolers.length;i++){
+                        const obs = Array.isArray(coolers[i].observed_temp) ? coolers[i].observed_temp : [];
+                        const vals=[]
                         const labels=[]
-                        for(var j=len-1;j>=0;j--){
-                            vals.push(res2.data[i].observed_temp[j]["obs_temp"]) ;
-                            labels.push(res2.data[i].observed_temp[j]["Date"])
-                            cnt=cnt+1 ;
-                            if(cnt>=8){
-                                break ;
-                            }
+                        let cnt=0
+                        for(let j=obs.length-1;j>=0 && cnt<8;j--){
+                            const entry = obs[j] || {};
+                            vals.push(entry.obs_temp ?? 0) ;
+                            labels.push(entry.Date ?? "") ;
+                            cnt++ ;
                         }
-                        vals.reverse() ;
-                        labels.reverse() ;
-                        var heatplot = {
-                            labels:labels,
-                            datasets:[
-                            {
-                                data: vals,
-                                label:"Obseved Temperature"
-                            }
-                        ]
-                        } ;
-                        Heatplots.push(heatplot) ;
+                        vals.reverse();
+                        labels.reverse();
+                        Coolplots.push({
+                            labels,
+                            datasets:[{ data: vals, label:"Observed Temperature" }]
+                        });
                     }
-                    setCoolChartData(Heatplots) ;                    
+                    setCoolChartData(Coolplots) ;                    
                     axios.get("/device/get_batteries",{params:{battery_ids:battery_ids}}).then(res3=>{
-                        SetBattery(res3.data) ;
-                        var n = res3.data.length ;
-                        const Heatplots=[]
-                        for(var i=0;i<n;i++){
-                            var vals=[] ;
-                            var len=res3.data[i].battery_charge_left.length ;
-                            var cnt=0 ;
+                        const batteries = Array.isArray(res3.data) ? res3.data : [];
+                        SetBattery(batteries) ;
+                        const Batplots=[]
+                        for(let i=0;i<batteries.length;i++){
+                            const obs = Array.isArray(batteries[i].battery_charge_left) ? batteries[i].battery_charge_left : [];
+                            const vals=[]
                             const labels=[]
-                            for(var j=len-1;j>=0;j--){
-                                vals.push(res3.data[i].battery_charge_left[j]["battery_charge_left"]) ;
-                                labels.push(res3.data[i].battery_charge_left[j]["Date"])
-                                cnt=cnt+1 ;
-                                if(cnt>=10){
-                                    break ;
-                                }
+                            let cnt=0
+                            for(let j=obs.length-1;j>=0 && cnt<10;j--){
+                                const entry = obs[j] || {};
+                                vals.push(entry.battery_charge_left ?? 0) ;
+                                labels.push(entry.Date ?? "") ;
+                                cnt++ ;
                             }
-                            vals.reverse() ;
-                            var heatplot = {
-                                labels:labels,
-                                datasets:[
-                                {
-                                    data: vals,
-                                    label:"Battery Charge Left"
-                                }
-                            ]
-                            } ;
-                            Heatplots.push(heatplot) ;
+                            vals.reverse();
+                            labels.reverse();
+                            Batplots.push({
+                                labels,
+                                datasets:[{ data: vals, label:"Battery Charge Left" }]
+                            });
                         }
-                        setBatteryChartData(Heatplots) ;                         
-                    })
-                })
-            })
-        })
+                        setBatteryChartData(Batplots) ;                         
+                    }).catch(()=>{ setBatteryChartData([]); SetBattery([]); })
+                }).catch(()=>{ setCoolChartData([]); SetCooling([]); })
+            }).catch(()=>{ setHeatChartData([]); SetHeating([]); })
+        }).catch(()=>{ /* optional: set defaults on error */ })
     }
 
     const HeatTempChange = (index) => (e) => {
         var val=Number(e.target.value) ;
-        var heater_id=Heating[index]._id ;
+        var heater_id=Heating[index]?._id ;
+        if(!heater_id) return;
         var cont = Heating[index].continous ;
         var disc = Heating[index].discrete ;
         var fan = Heating[index].fan ;
@@ -176,6 +161,7 @@ function Control(){
     }
 
     const HeatContChange = (index) => (e) =>{
+        if(!Heating[index]) return;
         var cont = Heating[index].continous ;    
         var val=Heating[index].desired_temp ;
         var heater_id=Heating[index]._id ;
@@ -188,7 +174,6 @@ function Control(){
             fan:fan
         }
         axios.post("/device/update_heater",data).then(res=>{
-            console.log(res) ;
             get_data()
         }).catch(err=>{
             console.log(err) ;
@@ -196,6 +181,7 @@ function Control(){
     } 
 
     const HeatDisChange = (index) => (e) =>{
+        if(!Heating[index]) return;
         var disc = Heating[index].discrete ;    
         var val=Heating[index].desired_temp ;
         var heater_id=Heating[index]._id ;
@@ -208,7 +194,6 @@ function Control(){
             fan:fan
         }
         axios.post("/device/update_heater",data).then(res=>{
-            console.log(res) ;
             get_data()
         }).catch(err=>{
             console.log(err) ;
@@ -216,6 +201,7 @@ function Control(){
     }
 
     const HeatFanChange = (index) => (e) =>{
+        if(!Heating[index]) return;
         var disc = Heating[index].discrete ; 
         var cont = Heating[index].continous ;   
         var val=Heating[index].desired_temp ;
@@ -229,7 +215,6 @@ function Control(){
             fan:!fan
         }
         axios.post("/device/update_heater",data).then(res=>{
-            console.log(res) ;
             get_data()
         }).catch(err=>{
             console.log(err) ;
@@ -238,7 +223,8 @@ function Control(){
 
     const CoolTempChange = (index) => (e) => {
         var val=Number(e.target.value) ;
-        var heater_id=Cooling[index]._id ;
+        var heater_id=Cooling[index]?._id ;
+        if(!heater_id) return;
         var cont = Cooling[index].continous ;
         var disc = Cooling[index].discrete ;
         var fan = Cooling[index].fan ;
@@ -257,6 +243,7 @@ function Control(){
     }
 
     const CoolContChange = (index) => (e) =>{
+        if(!Cooling[index]) return;
         var cont = Cooling[index].continous ;    
         var val=Cooling[index].desired_temp ;
         var heater_id=Cooling[index]._id ;
@@ -269,7 +256,6 @@ function Control(){
             fan:fan
         }
         axios.post("/device/update_cooler",data).then(res=>{
-            console.log(res) ;
             get_data()
         }).catch(err=>{
             console.log(err) ;
@@ -277,6 +263,7 @@ function Control(){
     } 
 
     const CoolDisChange = (index) => (e) =>{
+        if(!Cooling[index]) return;
         var disc = Cooling[index].discrete ;    
         var val=Cooling[index].desired_temp ;
         var heater_id=Cooling[index]._id ;
@@ -289,7 +276,6 @@ function Control(){
             fan:fan
         }
         axios.post("/device/update_cooler",data).then(res=>{
-            console.log(res) ;
             get_data()
         }).catch(err=>{
             console.log(err) ;
@@ -297,6 +283,7 @@ function Control(){
     }
 
     const CoolFanChange = (index) => (e) =>{
+        if(!Cooling[index]) return;
         var disc = Cooling[index].discrete ; 
         var cont = Cooling[index].continous ;   
         var val=Cooling[index].desired_temp ;
@@ -310,7 +297,6 @@ function Control(){
             fan:!fan
         }
         axios.post("/device/update_cooler",data).then(res=>{
-            console.log(res) ;
             get_data()
         }).catch(err=>{
             console.log(err) ;
@@ -318,6 +304,7 @@ function Control(){
     }  
     
     const BatteryFanChange = (index) => (e) =>{
+        if(!Battery[index]) return;
         var heater_id=Battery[index]._id ;
         var fan = Battery[index].fan ;
         const data={
@@ -325,7 +312,6 @@ function Control(){
             fan:!fan
         }
         axios.post("/device/update_battery",data).then(res=>{
-            console.log(res) ;
             get_data()
         }).catch(err=>{
             console.log(err) ;
@@ -338,7 +324,6 @@ function Control(){
 
 
     const AddSection = (e) =>{
-        console.log("hello")
         if(age===10){
             if(Heating.length>0){
                 alert("Heater Limit Reached") ;
@@ -352,11 +337,11 @@ function Control(){
                   const newHeater = {
                       name:name,
                       desired_temp:0,
-                      observed_temp:[0],
+                      observed_temp:[],
                       continous:true,
                       discrete:false,
                       fan:false,
-                      observed_humidity:[0]
+                      observed_humidity:[]
                   }
                   axios.post("/device/add_heater",newHeater).then(res=>{
                      var deviceid=localStorage.getItem('deviceid') ;
@@ -382,11 +367,11 @@ function Control(){
                   const newHeater = {
                       name:name,
                       desired_temp:0,
-                      observed_temp:[0],
+                      observed_temp:[],
                       continous:true,
                       discrete:false,
                       fan:false,
-                      observed_humidity:[0]
+                      observed_humidity:[]
                   }
                   axios.post("/device/add_cooler",newHeater).then(res=>{
                      var deviceid=localStorage.getItem('deviceid') ;
@@ -411,10 +396,10 @@ function Control(){
             else{
                   const newHeater = {
                       name:name,
-                      battery_temp:[0],
-                      battery_charge_left:[100],
+                      battery_temp:[],
+                      battery_charge_left:[],
                       fan:false,
-                      observed_humidity:[0]
+                      observed_humidity:[]
                   }
                   axios.post("/device/add_battery",newHeater).then(res=>{
                      var deviceid=localStorage.getItem('deviceid') ;
@@ -433,6 +418,8 @@ function Control(){
         let interval = setInterval(() => {
             get_data()
         }, 1000);
+        // initial fetch immediately
+        get_data();
         return () => {
             clearInterval(interval);
         };
@@ -454,94 +441,69 @@ function Control(){
         
         {/* Heating Components */}  
        { control && Heating.map((item,index) =>
-        <div className="components">
-            <p className="header">{Heating[index].name}</p>
+        <div key={item?._id ?? `heater-${index}`} className="components">
+            <p className="header">{item?.name ?? "Heater"}</p>
             <div style={{float:"left"}} className="leftlabels">
             <p className="headinglabel">Desired Temperature</p>
             </div>
             <TextField className="textfield" style={{float:"left",marginTop:"17px",width:"170px",marginLeft:"13px",border:"1px solid black"}} size="small"
-                InputProps={{ sx: { height: 30,fontSize:10 } }} value={Heating[index]["desired_temp"]}
+                InputProps={{ sx: { height: 30,fontSize:10 } }} value={item?.desired_temp ?? 0}
             >
             </TextField>
             <h6 className="headinglabel-1" sx={{float:"left",marginBottom:"0px"}}>Continous&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Discrete&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fan</h6>
-            <PinkSwitch sx={{width:"60px",marginTop:"0px",float:"left",marginLeft:"110px"}}  checked={item.continous} onChange={HeatContChange(index)}/>
-            <PinkSwitch sx={{width:"60px",marginTop:"0px",float:"left",marginLeft:"5px"}}  checked={item.discrete} onChange={HeatDisChange(index)}/>
-            <PinkSwitch sx={{width:"60px",marginTop:"0px",float:"left"}} onChange={HeatFanChange(index)} checked={item.fan}/>
+            <PinkSwitch sx={{width:"60px",marginTop:"0px",float:"left",marginLeft:"110px"}}  checked={!!item?.continous} onChange={HeatContChange(index)}/>
+            <PinkSwitch sx={{width:"60px",marginTop:"0px",float:"left",marginLeft:"5px"}}  checked={!!item?.discrete} onChange={HeatDisChange(index)}/>
+            <PinkSwitch sx={{width:"60px",marginTop:"0px",float:"left"}} onChange={HeatFanChange(index)} checked={!!item?.fan}/>
             <div style={{float:"left"}} className="leftlabels-2">
             <p className="headinglabel">Observable Temperature</p>
             </div>
             <TextField className="textfield" style={{float:"left",marginTop:"17px",width:"170px",marginLeft:"13px",border:"1px solid black"}} size="small"
-                InputProps={{ sx: { height: 30,fontSize:10 } }} value={item.observed_temp[(item.observed_temp.length)-1]["obs_temp"]}
+                InputProps={{ sx: { height: 30,fontSize:10 } }} value={safeLast(item?.observed_temp, "obs_temp", 0)}
             >
             </TextField>   
             <div className="left-labels-last">
             <p className="headinglabel">Observable Humidity</p>
             </div>
             <TextField className="textfield" style={{float:"left",marginTop:"17px",width:"170px",marginLeft:"13px",border:"1px solid black"}} size="small"
-                InputProps={{ sx: { height: 30,fontSize:10 } }} value={item.observed_humidity[(item.observed_humidity.length)-1].obs_humidity}
+                InputProps={{ sx: { height: 30,fontSize:10 } }} value={safeLast(item?.observed_humidity, "obs_humidity", 0)}
             >
             </TextField>                                                                                             
         </div>
         )}
         {/* Cooling Components */}
         { control && Cooling.map((item,index) =>
-        <div className="coolingcomponents">
-            <p className="header">{item.name}</p>
-            {/* <div style={{float:"left"}} className="leftlabels">
-            <p className="headinglabel">Desired Temperature</p>
-            </div>
-            <TextField className="textfield" style={{float:"left",marginTop:"17px",width:"170px",marginLeft:"13px",border:"1px solid black"}} size="small"
-                InputProps={{ sx: { height: 30,fontSize:10 } }} value={item.desired_temp}
-            >
-            </TextField> */}
-            {/* <h6 className="coolingheadinglabel-1" sx={{float:"left",marginBottom:"0px"}}>Continous&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Discrete&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fan</h6>
-            <PinkSwitch sx={{width:"60px",marginTop:"0px",float:"left",marginLeft:"110px"}} defaultChecked checked={item.continous} onChange={CoolContChange(index)}/>
-            <PinkSwitch sx={{width:"60px",marginTop:"0px",float:"left",marginLeft:"5px"}} defaultChecked checked={item.discrete} onChange={CoolDisChange(index)}/>
-            <PinkSwitch sx={{width:"60px",marginTop:"0px",float:"left"}} defaultChecked checked={item.fan} onChange={CoolFanChange(index)}/> */}
+        <div key={item?._id ?? `cooler-${index}`} className="coolingcomponents">
+            <p className="header">{item?.name ?? "Cooler"}</p>
             <div style={{float:"left"}} className="leftlabels-2">
             <p className="headinglabel">Observable Temperature</p>
             </div>
             <TextField className="textfield" style={{float:"left",marginTop:"17px",width:"170px",marginLeft:"13px",border:"1px solid black"}} size="small"
-                InputProps={{ sx: { height: 30,fontSize:10 } }} value={item.observed_temp[(item.observed_temp.length)-1].obs_temp}
+                InputProps={{ sx: { height: 30,fontSize:10 } }} value={safeLast(item?.observed_temp, "obs_temp", 0)}
             >
             </TextField>   
             <div className="coolingleft-labels-last">
             <p className="headinglabel">Observable Humidity</p>
             </div>
             <TextField className="textfield" style={{float:"left",marginTop:"17px",width:"170px",marginLeft:"13px",border:"1px solid black"}} size="small"
-                InputProps={{ sx: { height: 30,fontSize:10 } }} value={item.observed_humidity[(item.observed_humidity.length)-1].obs_humidity}
+                InputProps={{ sx: { height: 30,fontSize:10 } }} value={safeLast(item?.observed_humidity, "obs_humidity", 0)}
             >
             </TextField>                                                                                             
         </div>
         )}    
         {/* Battery Compartment  */}
         { control && Battery.map((item,index) =>
-        <div className="batterycomponents">
-            <p className="header">{item.name}</p>
-            {/* <div style={{float:"left",width:"100px"}} className="leftlabels">
-            <p className="headinglabel" style={{marginTop:"6px"}}>Battery Temperature</p>
-            </div>
-            <TextField className="textfield" style={{float:"left",marginTop:"17px",width:"170px",marginLeft:"13px",border:"1px solid black"}} size="small"
-                InputProps={{ sx: { height: 30,fontSize:10 } }} value={item.battery_temp[(item.battery_temp.length)-1]}
-            >
-            </TextField> */}
+        <div key={item?._id ?? `battery-${index}`} className="batterycomponents">
+            <p className="header">{item?.name ?? "Battery"}</p>
             <h6 className="headinglabel-6" sx={{float:"left",marginBottom:"0px"}}>Fan</h6>
-            <PinkSwitch sx={{width:"60px",marginTop:"0px",float:"center",marginLeft:"0px"}} defaultChecked checked={item.fan} onChange={BatteryFanChange(index)} />
+            <PinkSwitch sx={{width:"60px",marginTop:"0px",float:"center",marginLeft:"0px"}} checked={!!item?.fan} onChange={BatteryFanChange(index)} />
             <br/>
             <div style={{float:"left",width:"100px"}} className="leftlabels-2">
             <p className="headinglabel" style={{marginTop:"6px"}}>Charge/Voltage</p>
             </div>
             <TextField className="textfield" style={{float:"left",marginTop:"17px",width:"170px",marginLeft:"13px",border:"1px solid black"}} size="small"
-                InputProps={{ sx: { height: 30,fontSize:10 } }} value={item.battery_charge_left[(item.battery_charge_left.length)-1]["battery_charge_left"]}
+                InputProps={{ sx: { height: 30,fontSize:10 } }} value={safeLast(item?.battery_charge_left, "battery_charge_left", 0)}
             >
             </TextField>   
-            {/* <div className="left-labels-last-battery">
-            <p className="headinglabel">Observable Humidity</p>
-            </div>
-            <TextField className="textfield" style={{float:"left",marginTop:"17px",width:"170px",marginLeft:"13px",border:"1px solid black"}} size="small"
-                InputProps={{ sx: { height: 30,fontSize:10 } }} value={item.observed_humidity[(item.observed_humidity.length)-1]}
-            >
-            </TextField>                                                                                              */}
         </div>
         )}
         {/* Safety*/}
@@ -580,34 +542,34 @@ function Control(){
         </div>}
         {/*Analysis  */}
         { analysis && Heating.map((item,index) =>
-        <div className="analysisbatterycomponents">
+        <div key={item?._id ?? `a-heater-${index}`} className="analysisbatterycomponents">
             <p className="header">Observable Temperature</p>
-            <p className="main-main-header">{"(" + Heating[index].name+")"}</p>    
+            <p className="main-main-header">{"(" + (item?.name ?? "") +")"}</p>    
             <br/>
             <div style={{ width: "270px",marginLeft:"20px",border:"2px solid black" }}>
-             <LineChart chartData={HeatChartData[index]} />
+             <LineChart chartData={HeatChartData[index] ?? {labels:[],datasets:[]}} />
             </div>
         </div>
         )}
         {/* Cooling Components */}
         { analysis && Cooling.map((item,index) =>
-        <div className="analysisbatterycomponents">
+        <div key={item?._id ?? `a-cooler-${index}`} className="analysisbatterycomponents">
             <p className="header">Observable Temperature</p>
-            <p className="main-main-header">{item.name}</p>  
+            <p className="main-main-header">{item?.name ?? ""}</p>  
             <br/> 
             <div style={{ width: "270px",marginLeft:"20px",border:"2px solid black" }}>
-             <LineChart chartData={CoolChartData[index]} />
+             <LineChart chartData={CoolChartData[index] ?? {labels:[],datasets:[]}} />
             </div>                                                                                                         
         </div>
         )}    
         {/* Battery Compartment  */}
         { analysis && Battery.map((item,index) =>
-        <div className="analysisbatterycomponents">
+        <div key={item?._id ?? `a-battery-${index}`} className="analysisbatterycomponents">
             <p className="header">Charge/Voltage</p>
-            <p className="main-main-header">{item.name}</p> 
+            <p className="main-main-header">{item?.name ?? ""}</p> 
             <br/> 
             <div style={{ width: "270px", marginLeft:"20px",border:"2px solid black" }}>
-             <LineChart chartData={BatteryChartData[index]} />
+             <LineChart chartData={BatteryChartData[index] ?? {labels:[],datasets:[]}} />
             </div>                                                                                                         
         </div>
         )}
@@ -621,3 +583,4 @@ function Control(){
     
 }
 export default Control ;
+// ...existing code...
