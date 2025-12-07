@@ -58,7 +58,7 @@ function Home() {
         <div className="home-features">
           <div className="feature-card">
             <div className="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" strokeWidth="2"/>
               </svg>
             </div>

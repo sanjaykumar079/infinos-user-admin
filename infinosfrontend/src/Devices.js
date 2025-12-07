@@ -1,4 +1,3 @@
-// Updated Devices.js with claiming modal
 import "./Devices.css";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -7,8 +6,7 @@ import { supabase } from "./supabaseClient";
 import Navbar from "./components/layout/Navbar";
 import Card from "./components/ui/Card";
 import Button from "./components/ui/Button";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import ClaimDeviceModal from "./components/ClaimDeviceModal";
 
 function Devices() {
   const navigate = useNavigate();
@@ -17,11 +15,8 @@ function Devices() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterBagType, setFilterBagType] = useState("all");
   const [showClaimModal, setShowClaimModal] = useState(false);
-
-  if (localStorage.getItem("open") === "true") {
-    localStorage.setItem("open", "false");
-  }
 
   useEffect(() => {
     async function init() {
@@ -31,10 +26,7 @@ function Devices() {
         setUser(user);
 
         if (user) {
-          const res = await axios.get("/device/my-devices", {
-            params: { ownerId: user.id },
-          });
-          setDevices(res.data);
+          await fetchDevices(user.id);
         }
       } catch (err) {
         console.error("Error fetching devices:", err);
@@ -45,10 +37,10 @@ function Devices() {
     init();
   }, []);
 
-  const fetchDevices = async () => {
+  const fetchDevices = async (userId) => {
     try {
       const res = await axios.get("/device/my-devices", {
-        params: { ownerId: user.id },
+        params: { ownerId: userId || user.id },
       });
       setDevices(res.data);
     } catch (err) {
@@ -56,174 +48,56 @@ function Devices() {
     }
   };
 
-  const changeStatus = (index) => async (event) => {
-    const device = devices[index];
-    const newStatus = !device.status;
-
+  const changeStatus = (device) => async (event) => {
+    event.stopPropagation();
     try {
       await axios.post("/device/update_device", {
         device_id: device._id,
-        status: newStatus,
+        status: !device.status,
       });
-
-      const res = await axios.get("/device/my-devices", {
-        params: { ownerId: user.id },
-      });
-      setDevices(res.data);
+      await fetchDevices();
     } catch (err) {
       console.error("Error updating device:", err);
     }
   };
 
-  const DownloadLogs = (device) => async (e) => {
-    e.stopPropagation();
-    
-    try {
-      const doc = new jsPDF();
-      
-      doc.setFontSize(18);
-      doc.text(`${device.name} - Device Logs`, 14, 20);
-      doc.setFontSize(11);
-      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+  const getBagTypeDisplay = (bagType) => {
+    return bagType === 'dual-zone' ? 'Hot & Cold Zones' : 'Heating Only';
+  };
 
-      let yPosition = 35;
-
-      if (device.heating?.length > 0) {
-        const heaterRes = await axios.get("/device/get_heaters", {
-          params: { heater_ids: device.heating },
-        });
-
-        const tempData = [];
-        const humidityData = [];
-
-        heaterRes.data.forEach((heater) => {
-          heater.observed_temp?.slice(-1000).reverse().forEach((obs) => {
-            tempData.push([
-              `${device.name} Heater`,
-              obs.obs_temp || 0,
-              obs.TimeStamp || obs.Date || "",
-            ]);
-          });
-
-          heater.observed_humidity?.slice(-1000).reverse().forEach((obs) => {
-            humidityData.push([
-              `${device.name} Heater`,
-              obs.obs_humidity || 0,
-              obs.TimeStamp || obs.Date || "",
-            ]);
-          });
-        });
-
-        if (tempData.length > 0) {
-          doc.autoTable({
-            startY: yPosition,
-            head: [["Device", "Temperature (°C)", "Timestamp"]],
-            body: tempData,
-            headStyles: { fillColor: [255, 107, 53] },
-          });
-          yPosition = doc.lastAutoTable.finalY + 10;
-        }
-
-        if (humidityData.length > 0) {
-          doc.autoTable({
-            startY: yPosition,
-            head: [["Device", "Humidity (%)", "Timestamp"]],
-            body: humidityData,
-            headStyles: { fillColor: [255, 107, 53] },
-          });
-          yPosition = doc.lastAutoTable.finalY + 10;
-        }
-      }
-
-      if (device.cooling?.length > 0) {
-        const coolerRes = await axios.get("/device/get_coolers", {
-          params: { cooler_ids: device.cooling },
-        });
-
-        const tempData = [];
-        const humidityData = [];
-
-        coolerRes.data.forEach((cooler) => {
-          cooler.observed_temp?.slice(-1000).reverse().forEach((obs) => {
-            tempData.push([
-              `${device.name} Cooler`,
-              obs.obs_temp || 0,
-              obs.TimeStamp || obs.Date || "",
-            ]);
-          });
-
-          cooler.observed_humidity?.slice(-1000).reverse().forEach((obs) => {
-            humidityData.push([
-              `${device.name} Cooler`,
-              obs.obs_humidity || 0,
-              obs.TimeStamp || obs.Date || "",
-            ]);
-          });
-        });
-
-        if (tempData.length > 0) {
-          doc.autoTable({
-            startY: yPosition,
-            head: [["Device", "Temperature (°C)", "Timestamp"]],
-            body: tempData,
-            headStyles: { fillColor: [59, 130, 246] },
-          });
-          yPosition = doc.lastAutoTable.finalY + 10;
-        }
-
-        if (humidityData.length > 0) {
-          doc.autoTable({
-            startY: yPosition,
-            head: [["Device", "Humidity (%)", "Timestamp"]],
-            body: humidityData,
-            headStyles: { fillColor: [59, 130, 246] },
-          });
-          yPosition = doc.lastAutoTable.finalY + 10;
-        }
-      }
-
-      if (device.battery?.length > 0) {
-        const batteryRes = await axios.get("/device/get_batteries", {
-          params: { battery_ids: device.battery },
-        });
-
-        const chargeData = [];
-
-        batteryRes.data.forEach((battery) => {
-          battery.battery_charge_left?.slice(-1000).reverse().forEach((obs) => {
-            chargeData.push([
-              `${device.name} Battery`,
-              obs.battery_charge_left || 0,
-              obs.TimeStamp || obs.Date || "",
-            ]);
-          });
-        });
-
-        if (chargeData.length > 0) {
-          doc.autoTable({
-            startY: yPosition,
-            head: [["Device", "Battery Charge (%)", "Timestamp"]],
-            body: chargeData,
-            headStyles: { fillColor: [245, 158, 11] },
-          });
-        }
-      }
-
-      doc.save(`${device.name}_Logs.pdf`);
-    } catch (err) {
-      console.error("Error generating logs:", err);
-      alert("Failed to generate logs. Please try again.");
+  const getBagTypeIcon = (bagType) => {
+    if (bagType === 'dual-zone') {
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M12 2v20M2 12h20" strokeWidth="2"/>
+          <circle cx="7" cy="7" r="3" fill="#EF4444"/>
+          <circle cx="17" cy="17" r="3" fill="#3B82F6"/>
+        </svg>
+      );
+    } else {
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M12 2v20" strokeWidth="2"/>
+          <circle cx="12" cy="12" r="5" fill="#EF4444"/>
+        </svg>
+      );
     }
   };
 
   const filteredDevices = devices.filter((device) => {
     const matchesSearch = device.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter =
+    const matchesStatus =
       filterStatus === "all" ||
       (filterStatus === "online" && device.status) ||
       (filterStatus === "offline" && !device.status);
-    return matchesSearch && matchesFilter;
+    const matchesBagType =
+      filterBagType === "all" ||
+      device.bagType === filterBagType;
+    return matchesSearch && matchesStatus && matchesBagType;
   });
+
+  const dualZoneCount = devices.filter(d => d.bagType === 'dual-zone').length;
+  const heatingOnlyCount = devices.filter(d => d.bagType === 'heating-only').length;
 
   if (loading) {
     return (
@@ -243,9 +117,9 @@ function Devices() {
       <div className="devices-content">
         <div className="devices-header">
           <div>
-            <h1 className="devices-title">Your Devices</h1>
+            <h1 className="devices-title">Your Delivery Bags</h1>
             <p className="devices-subtitle">
-              Manage and monitor all your IoT devices
+              Manage and monitor all your smart delivery bags
             </p>
           </div>
           <Button
@@ -258,7 +132,7 @@ function Devices() {
               </svg>
             }
           >
-            Claim Device
+            Claim Bag
           </Button>
         </div>
 
@@ -270,7 +144,7 @@ function Devices() {
             </svg>
             <input
               type="text"
-              placeholder="Search devices..."
+              placeholder="Search bags..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
@@ -297,6 +171,27 @@ function Devices() {
               Offline ({devices.filter(d => !d.status).length})
             </button>
           </div>
+
+          <div className="filter-buttons">
+            <button
+              className={`filter-btn ${filterBagType === "all" ? "filter-btn-active" : ""}`}
+              onClick={() => setFilterBagType("all")}
+            >
+              All Types
+            </button>
+            <button
+              className={`filter-btn ${filterBagType === "dual-zone" ? "filter-btn-active" : ""}`}
+              onClick={() => setFilterBagType("dual-zone")}
+            >
+              Dual-Zone ({dualZoneCount})
+            </button>
+            <button
+              className={`filter-btn ${filterBagType === "heating-only" ? "filter-btn-active" : ""}`}
+              onClick={() => setFilterBagType("heating-only")}
+            >
+              Heating ({heatingOnlyCount})
+            </button>
+          </div>
         </div>
 
         {filteredDevices.length === 0 ? (
@@ -308,22 +203,24 @@ function Devices() {
               </svg>
             </div>
             <h3 className="empty-state-title">
-              {searchTerm || filterStatus !== "all" ? "No devices found" : "No devices yet"}
+              {searchTerm || filterStatus !== "all" || filterBagType !== "all" 
+                ? "No bags found" 
+                : "No bags yet"}
             </h3>
             <p className="empty-state-description">
-              {searchTerm || filterStatus !== "all"
+              {searchTerm || filterStatus !== "all" || filterBagType !== "all"
                 ? "Try adjusting your search or filters"
-                : "Claim your first device by entering its code"}
+                : "Claim your first delivery bag by entering its code"}
             </p>
-            {!searchTerm && filterStatus === "all" && (
+            {!searchTerm && filterStatus === "all" && filterBagType === "all" && (
               <Button variant="primary" onClick={() => setShowClaimModal(true)}>
-                Claim Your First Device
+                Claim Your First Bag
               </Button>
             )}
           </div>
         ) : (
           <div className="devices-grid">
-            {filteredDevices.map((device, index) => (
+            {filteredDevices.map((device) => (
               <Card
                 key={device._id}
                 className="device-card"
@@ -331,17 +228,13 @@ function Devices() {
                 onClick={() => {
                   if (device.status) {
                     localStorage.setItem("deviceid", device._id);
-                    localStorage.setItem("open", "true");
-                    navigate("/control");
+                    navigate("/bag-control");
                   }
                 }}
               >
                 <div className="device-card-header">
                   <div className="device-card-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <rect x="5" y="2" width="14" height="20" rx="2"/>
-                      <path d="M12 18h.01"/>
-                    </svg>
+                    {getBagTypeIcon(device.bagType)}
                   </div>
                   <span className={`device-status-badge ${device.status ? "status-online" : "status-offline"}`}>
                     <span className="status-dot"></span>
@@ -350,36 +243,45 @@ function Devices() {
                 </div>
 
                 <h3 className="device-card-name">{device.name}</h3>
-                <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '0 0 16px 0', fontFamily: 'monospace' }}>
+                <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '0 0 4px 0', fontFamily: 'monospace' }}>
                   {device.deviceCode}
+                </p>
+                <p style={{ 
+                  fontSize: '13px', 
+                  color: device.bagType === 'dual-zone' ? '#7C3AED' : '#EF4444', 
+                  fontWeight: '600',
+                  margin: '0 0 16px 0'
+                }}>
+                  {getBagTypeDisplay(device.bagType)}
                 </p>
 
                 <div className="device-card-components">
-                  {device.heating?.length > 0 && (
+                  {/* Hot Zone - ALL bags have this */}
+                  <div className="component-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444">
+                      <path d="M12 2v20" strokeWidth="2"/>
+                    </svg>
+                    <span>Hot Zone: {device.hotZone?.currentTemp?.toFixed(1) || 'N/A'}°C</span>
+                  </div>
+
+                  {/* Cold Zone - Only dual-zone bags */}
+                  {device.bagType === 'dual-zone' && (
                     <div className="component-item">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M8 2v20M16 2v20M12 2v20"/>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6">
+                        <path d="M12 2v20M2 12h20" strokeWidth="2"/>
                       </svg>
-                      <span>{device.heating.length} Heater{device.heating.length !== 1 ? 's' : ''}</span>
+                      <span>Cold Zone: {device.coldZone?.currentTemp?.toFixed(1) || 'N/A'}°C</span>
                     </div>
                   )}
-                  {device.cooling?.length > 0 && (
-                    <div className="component-item">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M2 12h20M12 2v20"/>
-                      </svg>
-                      <span>{device.cooling.length} Cooler{device.cooling.length !== 1 ? 's' : ''}</span>
-                    </div>
-                  )}
-                  {device.battery?.length > 0 && (
-                    <div className="component-item">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <rect x="1" y="6" width="18" height="12" rx="2"/>
-                        <path d="M23 13v-2"/>
-                      </svg>
-                      <span>{device.battery.length} Battery</span>
-                    </div>
-                  )}
+
+                  {/* Battery - ALL bags have this */}
+                  <div className="component-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <rect x="1" y="6" width="18" height="12" rx="2"/>
+                      <path d="M23 13v-2"/>
+                    </svg>
+                    <span>Battery: {device.battery?.chargeLevel?.toFixed(0) || 0}%</span>
+                  </div>
                 </div>
 
                 <div className="device-card-actions" onClick={(e) => e.stopPropagation()}>
@@ -387,7 +289,7 @@ function Devices() {
                     <input
                       type="checkbox"
                       checked={device.status}
-                      onChange={changeStatus(index)}
+                      onChange={changeStatus(device)}
                     />
                     <span className="toggle-slider"></span>
                   </label>
@@ -395,16 +297,16 @@ function Devices() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={DownloadLogs(device)}
-                    leftIcon={
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="7 10 12 15 17 10"/>
-                        <line x1="12" y1="15" x2="12" y2="3"/>
-                      </svg>
-                    }
+                    disabled={!device.status}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (device.status) {
+                        localStorage.setItem("deviceid", device._id);
+                        navigate("/bag-control");
+                      }
+                    }}
                   >
-                    Logs
+                    Monitor
                   </Button>
                 </div>
               </Card>
@@ -413,140 +315,16 @@ function Devices() {
         )}
       </div>
 
-      {/* Claim Device Modal */}
       {showClaimModal && (
         <ClaimDeviceModal
           user={user}
           onClose={() => setShowClaimModal(false)}
-          onDeviceClaimed={fetchDevices}
+          onDeviceClaimed={() => {
+            setShowClaimModal(false);
+            fetchDevices();
+          }}
         />
       )}
-    </div>
-  );
-}
-
-// Claim Device Modal Component
-function ClaimDeviceModal({ user, onClose, onDeviceClaimed }) {
-  const [step, setStep] = useState(1);
-  const [deviceCode, setDeviceCode] = useState('');
-  const [deviceName, setDeviceName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [deviceInfo, setDeviceInfo] = useState(null);
-
-  const verifyCode = async () => {
-    if (!deviceCode.trim()) {
-      setError('Please enter a device code');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await axios.get('http://localhost:4000/device/verify-code', {
-        params: { deviceCode: deviceCode.trim().toUpperCase() }
-      });
-
-      if (response.data.valid) {
-        setDeviceInfo(response.data.device);
-        setStep(2);
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Invalid device code');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const claimDevice = async () => {
-    if (!deviceName.trim()) {
-      setError('Please enter a device name');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await axios.post('http://localhost:4000/device/claim', {
-        deviceCode: deviceCode.trim().toUpperCase(),
-        ownerId: user.id,
-        deviceName: deviceName.trim()
-      });
-
-      if (response.data.device) {
-        onDeviceClaimed?.();
-        onClose();
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to claim device');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px',
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        maxWidth: '500px',
-        width: '100%',
-        maxHeight: '90vh',
-        overflow: 'auto',
-      }}>
-        {/* Modal content here - implementation continues... */}
-        <div style={{ padding: '24px' }}>
-          <h2>Claim Device - Step {step} of 2</h2>
-          {error && <div style={{ color: 'red', marginBottom: '16px' }}>{error}</div>}
-          
-          {step === 1 && (
-            <>
-              <input
-                type="text"
-                placeholder="Enter device code (INF-XXXX-XXXX)"
-                value={deviceCode}
-                onChange={(e) => setDeviceCode(e.target.value.toUpperCase())}
-                style={{ width: '100%', padding: '12px', marginBottom: '16px' }}
-              />
-              <button onClick={verifyCode} disabled={loading}>
-                {loading ? 'Verifying...' : 'Continue'}
-              </button>
-            </>
-          )}
-          
-          {step === 2 && (
-            <>
-              <p>Device verified: {deviceInfo?.deviceCode}</p>
-              <input
-                type="text"
-                placeholder="Enter device name"
-                value={deviceName}
-                onChange={(e) => setDeviceName(e.target.value)}
-                style={{ width: '100%', padding: '12px', marginBottom: '16px' }}
-              />
-              <button onClick={claimDevice} disabled={loading}>
-                {loading ? 'Claiming...' : 'Claim Device'}
-              </button>
-            </>
-          )}
-          
-          <button onClick={onClose} style={{ marginTop: '16px' }}>Cancel</button>
-        </div>
-      </div>
     </div>
   );
 }

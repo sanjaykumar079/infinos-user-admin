@@ -1,17 +1,13 @@
-// ✅ App.js
 import { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 
 import "./App.css";
-import logo from "./logo.svg";
 
-// Existing pages
+// Pages
 import Home from "./Home";
 import Devices from "./Devices";
-import Control from "./Control";
-
-// New pages
+import BagControl from "./BagControl";  // NEW - replaces Control
 import Login from "./Login";
 import Dashboard from "./Dashboard";
 
@@ -19,7 +15,6 @@ function App() {
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
-  // 🧠 Step 1: Get logged-in user from Supabase
   useEffect(() => {
     async function getUser() {
       const { data, error } = await supabase.auth.getUser();
@@ -28,7 +23,6 @@ function App() {
     }
     getUser();
 
-    // 🪄 Step 2: Listen for login/logout
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -43,24 +37,15 @@ function App() {
   return (
     <div className="App">
       <Router>
-        {/* 🧭 If not logged in → show login page */}
         {!user ? (
           <Login />
         ) : (
           <Routes>
-            {/* ✅ Keep all your old routes */}
             <Route path="/" element={<Home />} />
             <Route path="/devices" element={<Devices />} />
-            <Route path="/control" element={<Control />} />
-
-            {/* 🆕 Add new Dashboard */}
+            <Route path="/bag-control" element={<BagControl />} />  {/* NEW ROUTE */}
             <Route path="/dashboard" element={<Dashboard user={user} />} />
-
-            {/* Optional: Logout route */}
-            <Route
-              path="/logout"
-              element={<Logout setUser={setUser} />}
-            />
+            <Route path="/logout" element={<Logout setUser={setUser} />} />
           </Routes>
         )}
       </Router>
@@ -68,7 +53,6 @@ function App() {
   );
 }
 
-// 🧹 Simple logout component (optional)
 function Logout({ setUser }) {
   useEffect(() => {
     async function logout() {
