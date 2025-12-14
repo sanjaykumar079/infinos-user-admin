@@ -1,35 +1,41 @@
-// server.js
+// FILE: infinosbackend/server.js (REPLACE ENTIRE FILE)
+
+require('dotenv').config();
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const mongoose = require('mongoose');
 
-const PORT = 4000;
-const DB_NAME = "sanju"; // your new DB name
+const PORT = process.env.PORT || 4000;
 
-// routes
-const testAPIRouter = require("./routes/testAPI");
-const DeviceRouter = require("./routes/Device");
+// Routes
+const testAPIRouter = require('./routes/testAPI');
+const DeviceRouter = require('./routes/Device');
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ✅ Updated Mongo URI (connects to the new cluster & DB)
-const MONGO_URI = `mongodb+srv://sanju:sanju@cluster0.rl6u4ea.mongodb.net/${DB_NAME}?retryWrites=true&w=majority&appName=Cluster0`;
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Server is running' });
+});
 
-mongoose
-  .connect(MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("✅ MongoDB Atlas connection established successfully!"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
+// Routes
+app.use('/testAPI', testAPIRouter);
+app.use('/device', DeviceRouter);
 
-// routes
-app.use("/testAPI", testAPIRouter);
-app.use("/device", DeviceRouter);
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ 
+    error: 'Internal server error', 
+    message: err.message 
+  });
+});
 
-// start server
-app.listen(PORT, () => console.log(`🚀 Server is running on Port: ${PORT}`));
+// Start server
+app.listen(PORT, () => {
+  console.log(`🚀 Server is running on Port: ${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+});

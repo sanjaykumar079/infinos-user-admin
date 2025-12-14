@@ -1,10 +1,11 @@
+require('dotenv').config();
 const axios = require("axios");
 
 const API_URL = "http://localhost:4000/device";
 
 // ⚠️ REPLACE WITH YOUR BAG CREDENTIALS
-const DEVICE_CODE = "INF-05C4-87F9";
-const DEVICE_SECRET = "de9b3992a4b80a1ed2550800f01b0f3c2fc68acdf9df95c0fa47682dcf36b785";
+const DEVICE_CODE = "INF-2B19-D6F1";
+const DEVICE_SECRET = "4128e931ffadd8e7f5592c00a410d099479a3d3bf70ce66e54e20f307bbea42b";
 
 let deviceId = null;
 let bagType = null;
@@ -14,12 +15,9 @@ let batteryLevel = 100;
 
 function simulateTemp(current, target, isActive) {
   if (!isActive) {
-    // Natural drift toward room temperature (25°C)
     const diff = 25 - current;
     return current + (diff * 0.05);
   }
-  
-  // Move toward target
   const diff = target - current;
   if (Math.abs(diff) < 0.5) {
     return current + (Math.random() - 0.5);
@@ -30,18 +28,25 @@ function simulateTemp(current, target, isActive) {
 async function authenticateDevice() {
   try {
     console.log("🔐 Authenticating bag...");
+    console.log(`   Code: ${DEVICE_CODE}`);
     const response = await axios.post(`${API_URL}/auth`, {
       deviceCode: DEVICE_CODE,
       deviceSecret: DEVICE_SECRET
     });
-
+    
+    console.log("📦 Auth response:", JSON.stringify(response.data, null, 2));
+    
     if (response.data.authenticated) {
-      deviceId = response.data.device._id;
+      deviceId = response.data.device.id;
       bagType = response.data.device.bagType;
       
       console.log("✅ Authenticated!");
+      console.log(`   Device ID: ${deviceId}`);
       console.log(`   Type: ${bagType}`);
       return true;
+    } else {
+      console.error("❌ Auth response missing authenticated flag");
+      return false;
     }
   } catch (err) {
     console.error("❌ Auth failed:", err.response?.data || err.message);
@@ -51,12 +56,16 @@ async function authenticateDevice() {
 
 async function sendData() {
   try {
+    if (!deviceId) {
+      console.error("❌ No device ID - skipping update");
+      return;
+    }
+
     await axios.post(`${API_URL}/update_device`, {
       device_id: deviceId,
       status: true
     });
-
-    // Get current device state
+    
     const deviceRes = await axios.get(`${API_URL}/get_device`, {
       params: { device_id: deviceId }
     });
@@ -65,7 +74,7 @@ async function sendData() {
     // Simulate hot zone
     hotTemp = simulateTemp(hotTemp, device.hotZone.targetTemp, device.hotZone.heaterOn);
     const hotHumidity = 40 + (Math.random() * 10);
-    
+
     await axios.post(`${API_URL}/update_hot_zone`, {
       device_id: deviceId,
       temp: Number(hotTemp.toFixed(2)),
@@ -98,7 +107,6 @@ async function sendData() {
 
     const timestamp = new Date().toLocaleTimeString();
     console.log(`📡 [${timestamp}] Hot: ${hotTemp.toFixed(1)}°C${bagType === 'dual-zone' ? `, Cold: ${coldTemp.toFixed(1)}°C` : ''}, Battery: ${batteryLevel.toFixed(1)}%`);
-
   } catch (err) {
     console.error("❌ Error:", err.response?.data || err.message);
   }
@@ -106,13 +114,13 @@ async function sendData() {
 
 async function main() {
   console.log("🚀 Starting Bag Simulator...\n");
-
+  
   const authenticated = await authenticateDevice();
   if (!authenticated) {
     console.error("\n❌ Cannot start without authentication");
     process.exit(1);
   }
-
+  
   console.log("\n📊 Starting monitoring (every 5 seconds)...\n");
   await sendData();
   setInterval(sendData, 5000);

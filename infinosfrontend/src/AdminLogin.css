@@ -1,5 +1,203 @@
 /* FILE: infinosfrontend/src/AdminLogin.css */
+.mobile-logo {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--gray-200);
+}
 
+.mobile-logo-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--gray-900), #1a1a1a);
+  color: var(--infinos-orange-500);
+  border-radius: var(--radius-full);
+}
+
+.mobile-logo span {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+/* Enhanced Input Wrapper */
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: var(--space-4);
+  color: var(--gray-400);
+  pointer-events: none;
+  stroke-width: 2;
+  z-index: 1;
+}
+
+.input-field {
+  width: 100%;
+  height: 56px;
+  padding: 0 var(--space-12) 0 var(--space-12);
+  border: 2px solid var(--gray-300);
+  border-radius: var(--radius-lg);
+  font-size: 1rem;
+  color: var(--gray-900);
+  background: white;
+  transition: all var(--transition-base);
+  font-family: monospace;
+  letter-spacing: 2px;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--gray-900);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.1);
+}
+
+.input-field:disabled {
+  background: var(--gray-50);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.input-field::placeholder {
+  color: var(--gray-400);
+  letter-spacing: normal;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Password Toggle Button */
+.input-toggle {
+  position: absolute;
+  right: var(--space-4);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--gray-400);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+  z-index: 1;
+}
+
+.input-toggle:hover:not(:disabled) {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+.input-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Input Hint */
+.input-hint {
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+  margin: var(--space-2) 0 0 0;
+  line-height: 1.5;
+}
+
+/* Security Badge */
+.security-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--gray-50);
+  border-radius: var(--radius-lg);
+  color: var(--gray-600);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: var(--space-4);
+}
+
+.security-badge svg {
+  color: var(--success);
+  stroke-width: 2;
+}
+
+/* Enhanced Button States */
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.login-btn:not(:disabled):active {
+  transform: translateY(0);
+}
+
+/* Improved Mobile Responsiveness */
+@media (max-width: 1024px) {
+  .mobile-logo {
+    display: flex;
+  }
+  
+  .admin-login-branding {
+    display: none;
+  }
+  
+  .login-form-side {
+    padding: var(--space-8) var(--space-6);
+  }
+}
+
+@media (max-width: 640px) {
+  .login-layout {
+    padding: 0;
+  }
+  
+  .admin-login-container {
+    border-radius: 0;
+    min-height: 100vh;
+  }
+  
+  .login-form-side {
+    padding: var(--space-6) var(--space-4);
+  }
+  
+  .login-title {
+    font-size: 1.5rem;
+  }
+  
+  .input-field {
+    height: 48px;
+    font-size: 0.9375rem;
+  }
+  
+  .login-btn {
+    height: 48px;
+    font-size: 0.9375rem;
+  }
+}
+
+/* Loading Animation Enhancement */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(17, 24, 39, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(17, 24, 39, 0);
+  }
+}
+
+.login-btn:disabled {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
 .admin-login-layout {
     min-height: 100vh;
     display: flex;
