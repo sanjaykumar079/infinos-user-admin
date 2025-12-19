@@ -18,18 +18,29 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // Auth helper functions
 export const authHelpers = {
   // Sign up with email and password
+  // Sign up with email and password
   signUp: async (email, password, metadata = {}) => {
     try {
+      console.log('Signing up with Supabase:', email);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: metadata,
-          emailRedirectTo: window.location.origin + '/dashboard',
+          emailRedirectTo: `${window.location.origin}/dashboard`,
         },
       });
+      
+      if (error) {
+        console.error('Supabase signup error:', error);
+      } else {
+        console.log('Supabase signup success:', data);
+      }
+      
       return { data, error };
     } catch (error) {
+      console.error('Signup exception:', error);
       return { data: null, error };
     }
   },

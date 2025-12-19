@@ -1,13 +1,15 @@
-// FILE: infinosbackend/middleware/authMiddleware.js
-// JWT authentication middleware for Express
-
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsdmtxbmhsdHNkcnVmY3lvdWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3Mzc1NDUsImV4cCI6MjA4MDMxMzU0NX0.Sq4NaZo1kSTM6yTS9wWPGGlgBpps7ycErdA-u6_rDgo";
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+// Client for verifying user tokens (uses anon key)
+const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
+
+// Client for database operations (uses service role key)
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
@@ -16,11 +18,9 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 /**
  * Middleware to verify JWT token from Supabase
- * Extracts user information and adds it to req.user
  */
 const verifyToken = async (req, res, next) => {
   try {
-    // Get token from Authorization header
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -30,12 +30,13 @@ const verifyToken = async (req, res, next) => {
       });
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const token = authHeader.substring(7);
 
     // Verify token with Supabase
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const { data: { user }, error } = await supabaseAuth.auth.getUser(token);
 
     if (error || !user) {
+      console.error('Token verification failed:', error);
       return res.status(401).json({ 
         error: 'Unauthorized', 
         message: 'Invalid or expired token' 
@@ -50,6 +51,9 @@ const verifyToken = async (req, res, next) => {
       role: user.role,
     };
 
+    // Add admin supabase client for database operations
+    req.supabase = supabaseAdmin;
+
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
@@ -60,10 +64,6 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-/**
- * Middleware to verify admin privileges
- * Should be used after verifyToken
- */
 const verifyAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ 
@@ -72,7 +72,6 @@ const verifyAdmin = (req, res, next) => {
     });
   }
 
-  // Check if user has admin role
   const isAdmin = req.user.metadata?.role === 'admin' || req.user.role === 'admin';
 
   if (!isAdmin) {
@@ -85,10 +84,6 @@ const verifyAdmin = (req, res, next) => {
   next();
 };
 
-/**
- * Optional authentication middleware
- * Allows requests without token but adds user info if token is present
- */
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -96,7 +91,7 @@ const optionalAuth = async (req, res, next) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       
-      const { data: { user }, error } = await supabase.auth.getUser(token);
+      const { data: { user }, error } = await supabaseAuth.auth.getUser(token);
 
       if (!error && user) {
         req.user = {
@@ -108,22 +103,22 @@ const optionalAuth = async (req, res, next) => {
       }
     }
 
+    // Always add admin client for database operations
+    req.supabase = supabaseAdmin;
+
     next();
   } catch (error) {
-    // Continue without authentication
+    req.supabase = supabaseAdmin;
     next();
   }
 };
 
-/**
- * Middleware to rate limit requests per user
- */
 const rateLimitByUser = (maxRequests = 100, windowMs = 60000) => {
   const userRequests = new Map();
 
   return (req, res, next) => {
     if (!req.user) {
-      return next(); // Skip rate limiting if no user
+      return next();
     }
 
     const userId = req.user.id;
@@ -137,7 +132,6 @@ const rateLimitByUser = (maxRequests = 100, windowMs = 60000) => {
     const userData = userRequests.get(userId);
 
     if (now > userData.resetTime) {
-      // Reset the count
       userRequests.set(userId, { count: 1, resetTime: now + windowMs });
       return next();
     }

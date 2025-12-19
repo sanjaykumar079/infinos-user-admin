@@ -12,27 +12,33 @@ function AdminLogin() {
   const { loginAdmin } = useAdminAuth();
 
   const handleAdminLogin = async (e) => {
-    e.preventDefault();
-    
-    if (!passkey.trim()) {
-      setError("Please enter your passkey");
-      return;
+  e.preventDefault();
+
+  if (!passkey.trim()) {
+    setError("Please enter your passkey");
+    return;
+  }
+
+  setLoading(true);
+  setError("");
+
+  // Small delay to show loading state
+  setTimeout(() => {
+    console.log('Attempting admin login...');
+    const result = loginAdmin(passkey);
+
+    if (result.success) {
+      console.log('Login successful, navigating to dashboard...');
+      navigate('/admin/dashboard');
+    } else {
+      console.log('Login failed:', result.error);
+      setError(result.error || "Invalid passkey. Please try again.");
+      setPasskey("");
     }
 
-    setLoading(true);
-    setError("");
-
-    setTimeout(() => {
-      const result = loginAdmin(passkey);
-      
-      if (result.success) {
-        navigate('/admin/dashboard');
-      } else {
-        setError(result.error || "Invalid passkey. Please try again.");
-        setLoading(false);
-      }
-    }, 800);
-  };
+    setLoading(false);
+  }, 500);
+};
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !loading) {

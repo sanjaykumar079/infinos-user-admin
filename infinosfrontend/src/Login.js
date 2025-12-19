@@ -81,87 +81,107 @@ function Login() {
   };
 
   // Email/Password Sign Up
+  // Email/Password Sign Up
   const handleEmailSignUp = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
-
+  
     // Validation
     if (!email || !password || !confirmPassword || !fullName) {
       setError("Please fill in all fields");
       return;
     }
-
+  
     if (!validateEmail(email)) {
       setError("Please enter a valid email address");
       return;
     }
-
+  
     if (password.length < 8) {
       setError("Password must be at least 8 characters long");
       return;
     }
-
+  
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-
+  
     setLoading(true);
-
+  
     try {
+      console.log('Attempting signup with email:', email);
+      
       const { data, error } = await authHelpers.signUp(email, password, {
         name: fullName,
       });
-
+  
+      console.log('Signup response:', { data, error });
+  
       if (error) {
-        if (error.message.includes("already registered")) {
-          setError("This email is already registered. Please sign in instead.");
+        console.error('Signup error:', error);
+        
+        if (error.message.includes("already registered") || error.message.includes("already been registered")) {
+          setError("This email is already registered. Please sign in instead or use a different email.");
+        } else if (error.message.includes("Unable to validate email")) {
+          setError("Email validation failed. Please check your email address and try again.");
         } else {
-          setError(error.message || "Failed to sign up");
+          setError(error.message || "Failed to sign up. Please try again.");
         }
         setLoading(false);
         return;
       }
-
+  
       if (data?.user) {
-        // Check if email confirmation is required
-        const confirmationRequired = !data.user.email_confirmed_at && !data.session;
-
-        if (confirmationRequired) {
+        console.log('User created:', data.user);
+        
+        // Check if confirmation is required
+        const emailConfirmed = data.user.email_confirmed_at;
+        const hasSession = data.session !== null;
+        
+        console.log('Email confirmed:', emailConfirmed);
+        console.log('Has session:', hasSession);
+  
+        if (!emailConfirmed && !hasSession) {
           // Email confirmation required
           setSuccess(
-            "🎉 Account created! Please check your email (including spam/junk folder) to verify your account. " +
-            "Once verified, you can sign in. Didn't receive the email? Try signing up again or contact support."
+            `✅ Account created successfully! 
+            
+            📧 Please check your email inbox (${email}) for a verification link. 
+            
+            ⚠️ Important: 
+            - Check your spam/junk folder if you don't see it
+            - The email may take 1-2 minutes to arrive
+            - Look for an email from noreply@mail.app.supabase.io
+            
+            Once verified, you can sign in below.`
           );
-        } else {
-          // Email confirmation disabled or already confirmed
+          
+          // Switch to sign in mode after showing success
+          setTimeout(() => {
+            setAuthMode("signin");
+            setError("");
+          }, 10000); // 10 seconds to read the message
+          
+        } else if (emailConfirmed || hasSession) {
+          // Email confirmation disabled or already confirmed - auto sign in
           setSuccess("🎉 Account created successfully! Redirecting to dashboard...");
           
-          // Automatically redirect after 2 seconds
           setTimeout(() => {
             navigate("/dashboard");
-          }, 2000);
+          }, 1500);
         }
-
+  
         // Clear form
         setEmail("");
         setPassword("");
         setConfirmPassword("");
         setFullName("");
-
-        // If confirmation required, switch to sign in after delay
-        if (confirmationRequired) {
-          setTimeout(() => {
-            setAuthMode("signin");
-            setSuccess("");
-            setError("");
-          }, 8000);
-        }
       }
     } catch (error) {
+      console.error("Unexpected signup error:", error);
       setError("An unexpected error occurred. Please try again.");
-      console.error("Sign up error:", error);
     } finally {
       setLoading(false);
     }
