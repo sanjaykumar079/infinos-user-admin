@@ -22,7 +22,6 @@ function AdminLogin() {
     setLoading(true);
     setError("");
 
-    // Simulate network delay for better UX
     setTimeout(() => {
       const result = loginAdmin(passkey);
       
@@ -43,6 +42,13 @@ function AdminLogin() {
 
   return (
     <div className="admin-login-layout">
+      <button className="back-to-user-btn" onClick={() => navigate('/')}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back to User Login
+      </button>
+
       <div className="admin-login-container">
         {/* Left Side - Branding */}
         <div className="admin-login-branding">

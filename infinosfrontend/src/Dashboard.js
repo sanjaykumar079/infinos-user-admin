@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./supabaseClient";
-import axios from "axios";
+import { deviceAPI } from "./utils/api";
 import { useNavigate } from "react-router-dom";
 import Navbar from "./components/layout/Navbar";
 import Card from "./components/ui/Card";
@@ -16,9 +15,7 @@ function Dashboard({ user }) {
     async function fetchSummary() {
       try {
         setLoading(true);
-        const res = await axios.get("/device/summary", {
-          params: { ownerId: user.id },
-        });
+        const res = await deviceAPI.getSummary(user.id);
         setSummary(res.data);
       } catch (error) {
         console.error("Error fetching summary:", error);

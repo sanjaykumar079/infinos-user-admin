@@ -1,5 +1,69 @@
-/* FILE: infinosfrontend/src/AdminDashboard.css */
+/* Enhanced Admin Dashboard Styles */
 
+.admin-add-device-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  background: linear-gradient(135deg, var(--infinos-orange-500), var(--infinos-orange-600));
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-add-device-btn:hover {
+  background: linear-gradient(135deg, var(--infinos-orange-600), var(--infinos-orange-700));
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.admin-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: linear-gradient(135deg, var(--infinos-orange-500), var(--infinos-orange-600));
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  font-size: 0.9375rem;
+}
+
+.admin-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.admin-action-btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: white;
+  color: var(--gray-700);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  font-size: 0.9375rem;
+}
+
+.admin-action-btn-secondary:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-400);
+}
+
+/* Rest of the existing AdminDashboard.css styles... */
 .admin-dashboard-layout {
   min-height: 100vh;
   background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
@@ -14,7 +78,6 @@
   gap: var(--space-4);
 }
 
-/* Admin Header */
 .admin-header {
   background: linear-gradient(135deg, var(--gray-900) 0%, #1a1a1a 100%);
   color: white;
@@ -89,14 +152,12 @@
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
 }
 
-/* Admin Content */
 .admin-content {
   max-width: 1600px;
   margin: 0 auto;
   padding: var(--space-8) var(--space-6);
 }
 
-/* Stats Grid */
 .admin-stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -228,7 +289,6 @@
   margin: 0;
 }
 
-/* Tabs */
 .admin-tabs {
   display: flex;
   gap: var(--space-2);
@@ -272,7 +332,6 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* Overview */
 .admin-overview {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -292,11 +351,6 @@
   font-weight: 700;
   color: var(--gray-900);
   margin: 0 0 var(--space-4) 0;
-}
-
-.admin-card-text {
-  color: var(--gray-600);
-  margin: 0;
 }
 
 .admin-health-grid {
@@ -336,7 +390,6 @@
   margin: 0;
 }
 
-/* Table */
 .admin-table-container {
   background: white;
   border-radius: var(--radius-xl);
@@ -380,39 +433,6 @@
   background: var(--gray-50);
 }
 
-.admin-customer-cell {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.admin-customer-avatar {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--infinos-orange-500), var(--infinos-orange-600));
-  color: white;
-  border-radius: var(--radius-full);
-  font-weight: 700;
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-
-.admin-customer-name {
-  font-weight: 600;
-  color: var(--gray-900);
-  margin: 0 0 var(--space-1) 0;
-}
-
-.admin-customer-email {
-  font-size: 0.8125rem;
-  color: var(--gray-500);
-  margin: 0;
-}
-
-/* Badges */
 .admin-badge {
   display: inline-flex;
   align-items: center;
@@ -422,11 +442,6 @@
   font-size: 0.8125rem;
   font-weight: 600;
   white-space: nowrap;
-}
-
-.admin-badge-primary {
-  background: var(--infinos-orange-50);
-  color: var(--infinos-orange-700);
 }
 
 .admin-badge-success {
@@ -457,7 +472,6 @@
   color: var(--error-dark);
 }
 
-/* Responsive */
 @media (max-width: 1024px) {
   .admin-content {
     padding: var(--space-6) var(--space-4);
@@ -488,7 +502,7 @@
   }
 
   .admin-table {
-    min-width: 800px;
+    min-width: 1000px;
   }
 
   .admin-stats-grid {

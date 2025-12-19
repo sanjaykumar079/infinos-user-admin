@@ -1,8 +1,8 @@
 import "./Devices.css";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { supabase } from "./supabaseClient";
+import { deviceAPI } from "./utils/api";
 import Navbar from "./components/layout/Navbar";
 import Card from "./components/ui/Card";
 import Button from "./components/ui/Button";
@@ -39,9 +39,7 @@ function Devices() {
 
   const fetchDevices = async (userId) => {
     try {
-      const res = await axios.get("/device/my-devices", {
-        params: { ownerId: userId || user.id },
-      });
+      const res = await deviceAPI.getMyDevices(userId || user.id);
       setDevices(res.data);
     } catch (err) {
       console.error("Error fetching devices:", err);
@@ -51,10 +49,7 @@ function Devices() {
   const changeStatus = (device) => async (event) => {
     event.stopPropagation();
     try {
-      await axios.post("/device/update_device", {
-        device_id: device._id,
-        status: !device.status,
-      });
+      await deviceAPI.updateDevice(device._id, !device.status);
       await fetchDevices();
     } catch (err) {
       console.error("Error updating device:", err);

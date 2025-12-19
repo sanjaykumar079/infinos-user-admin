@@ -1,14 +1,87 @@
-// FILE: infinosbackend/routes/Device.js (REPLACE ENTIRE FILE)
+// FILE: infinosbackend/routes/Device.js
+// Updated routes with JWT authentication
 
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
+const { verifyToken, verifyAdmin, optionalAuth } = require('../middleware/authMiddleware');
+
+// Normalize Supabase rows into the shape expected by the frontend
+const formatDeviceListItem = (device) => ({
+  _id: device.id,
+  id: device.id,
+  name: device.name,
+  deviceCode: device.device_code,
+  bagType: device.bag_type,
+  status: device.status,
+  lastSeen: device.last_seen,
+  hotZone: {
+    currentTemp: device.hot_zone_current_temp,
+    targetTemp: device.hot_zone_target_temp,
+    currentHumidity: device.hot_zone_current_humidity,
+    heaterOn: device.hot_zone_heater_on,
+    fanOn: device.hot_zone_fan_on,
+  },
+  coldZone: device.bag_type === 'dual-zone' ? {
+    currentTemp: device.cold_zone_current_temp,
+    targetTemp: device.cold_zone_target_temp,
+    currentHumidity: device.cold_zone_current_humidity,
+    coolerOn: device.cold_zone_cooler_on,
+    fanOn: device.cold_zone_fan_on,
+  } : null,
+  battery: {
+    chargeLevel: device.battery_charge_level,
+    voltage: device.battery_voltage,
+    isCharging: device.battery_is_charging,
+  },
+  safetyLimits: {
+    minTemp: device.safety_min_temp,
+    maxTemp: device.safety_max_temp,
+    lowBattery: device.safety_low_battery,
+  },
+});
 
 // ============================================
-// AUTHENTICATION ENDPOINTS
+// PUBLIC ENDPOINTS (No authentication required)
 // ============================================
 
-// Verify device code (for claiming)
+// Authenticate device (for simulator/hardware)
+router.post('/auth', async (req, res) => {
+  try {
+    const { deviceCode, deviceSecret } = req.body;
+
+    const { data: device, error } = await supabase
+      .from('devices')
+      .select('*')
+      .eq('device_code', deviceCode)
+      .eq('device_secret', deviceSecret)
+      .single();
+
+    if (error || !device) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Update last seen
+    await supabase
+      .from('devices')
+      .update({ last_seen: new Date().toISOString() })
+      .eq('id', device.id);
+
+    res.json({ 
+      authenticated: true,
+      device: {
+        id: device.id,
+        deviceCode: device.device_code,
+        bagType: device.bag_type
+      }
+    });
+  } catch (err) {
+    console.error('Auth error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Verify device code (for claiming) - No auth required
 router.get('/verify-code', async (req, res) => {
   try {
     const { deviceCode } = req.query;
@@ -49,10 +122,21 @@ router.get('/verify-code', async (req, res) => {
   }
 });
 
-// Claim device
-router.post('/claim', async (req, res) => {
+// ============================================
+// AUTHENTICATED USER ENDPOINTS
+// ============================================
+
+// Claim device - Requires authentication
+router.post('/claim', verifyToken, async (req, res) => {
   try {
     const { deviceCode, ownerId, deviceName } = req.body;
+
+    // Verify that the authenticated user matches the ownerId
+    if (req.user.id !== ownerId) {
+      return res.status(403).json({ 
+        message: 'Unauthorized to claim device for another user' 
+      });
+    }
 
     // Check if device exists and is unclaimed
     const { data: device, error: fetchError } = await supabase
@@ -107,50 +191,17 @@ router.post('/claim', async (req, res) => {
   }
 });
 
-// Authenticate device (for simulator/hardware)
-router.post('/auth', async (req, res) => {
-  try {
-    const { deviceCode, deviceSecret } = req.body;
-
-    const { data: device, error } = await supabase
-      .from('devices')
-      .select('*')
-      .eq('device_code', deviceCode)
-      .eq('device_secret', deviceSecret)
-      .single();
-
-    if (error || !device) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    // Update last seen
-    await supabase
-      .from('devices')
-      .update({ last_seen: new Date().toISOString() })
-      .eq('id', device.id);
-
-    res.json({ 
-      authenticated: true,
-      device: {
-        id: device.id,
-        deviceCode: device.device_code,
-        bagType: device.bag_type
-      }
-    });
-  } catch (err) {
-    console.error('Auth error:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
-});
-
-// ============================================
-// DEVICE MANAGEMENT
-// ============================================
-
-// Get user's devices
-router.get('/my-devices', async (req, res) => {
+// Get user's devices - Requires authentication
+router.get('/my-devices', verifyToken, async (req, res) => {
   try {
     const { ownerId } = req.query;
+
+    // Verify that the authenticated user matches the ownerId
+    if (req.user.id !== ownerId) {
+      return res.status(403).json({ 
+        message: 'Unauthorized to access other user devices' 
+      });
+    }
 
     const { data: devices, error } = await supabase
       .from('devices')
@@ -161,17 +212,25 @@ router.get('/my-devices', async (req, res) => {
 
     if (error) throw error;
 
-    res.json(devices || []);
+    const formatted = (devices || []).map(formatDeviceListItem);
+    res.json(formatted);
   } catch (err) {
     console.error('Fetch devices error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
-// Get device summary
-router.get('/summary', async (req, res) => {
+// Get device summary - Requires authentication
+router.get('/summary', verifyToken, async (req, res) => {
   try {
     const { ownerId } = req.query;
+
+    // Verify that the authenticated user matches the ownerId
+    if (req.user.id !== ownerId) {
+      return res.status(403).json({ 
+        message: 'Unauthorized to access other user data' 
+      });
+    }
 
     const { data: devices, error } = await supabase
       .from('devices')
@@ -186,13 +245,15 @@ router.get('/summary', async (req, res) => {
     const dualZone = devices.filter(d => d.bag_type === 'dual-zone').length;
     const heatingOnly = devices.filter(d => d.bag_type === 'heating-only').length;
 
+    const formattedDevices = (devices || []).map(formatDeviceListItem);
+
     res.json({
       totalDevices: total,
       onlineDevices: online,
       offlineDevices: total - online,
       dualZoneBags: dualZone,
       heatingOnlyBags: heatingOnly,
-      devices: devices,
+      devices: formattedDevices,
     });
   } catch (err) {
     console.error('Summary error:', err);
@@ -200,8 +261,8 @@ router.get('/summary', async (req, res) => {
   }
 });
 
-// Get specific device
-router.get('/get_device', async (req, res) => {
+// Get specific device - Requires authentication
+router.get('/get_device', verifyToken, async (req, res) => {
   try {
     const { device_id } = req.query;
 
@@ -215,6 +276,13 @@ router.get('/get_device', async (req, res) => {
       return res.status(404).json({ message: 'Device not found' });
     }
 
+    // Verify that the authenticated user owns this device
+    if (device.owner_id !== req.user.id) {
+      return res.status(403).json({ 
+        message: 'Unauthorized to access this device' 
+      });
+    }
+
     // Get recent temperature readings
     const { data: hotReadings } = await supabase
       .from('temperature_readings')
@@ -226,7 +294,8 @@ router.get('/get_device', async (req, res) => {
 
     const { data: coldReadings } = await supabase
       .from('temperature_readings')
-      .select('device_id', device_id)
+      .select('*')
+      .eq('device_id', device_id)
       .eq('zone', 'cold')
       .order('timestamp', { ascending: false })
       .limit(100);
@@ -239,7 +308,7 @@ router.get('/get_device', async (req, res) => {
       .order('timestamp', { ascending: false })
       .limit(100);
 
-    // Format response to match frontend expectations
+    // Format response
     const formattedDevice = {
       ...device,
       _id: device.id,
@@ -296,10 +365,25 @@ router.get('/get_device', async (req, res) => {
   }
 });
 
-// Update device status
-router.post('/update_device', async (req, res) => {
+// Update device status - Requires authentication or device auth
+router.post('/update_device', optionalAuth, async (req, res) => {
   try {
     const { device_id, status } = req.body;
+
+    // If authenticated as user, verify ownership
+    if (req.user) {
+      const { data: device } = await supabase
+        .from('devices')
+        .select('owner_id')
+        .eq('id', device_id)
+        .single();
+
+      if (device && device.owner_id !== req.user.id) {
+        return res.status(403).json({ 
+          message: 'Unauthorized to update this device' 
+        });
+      }
+    }
 
     const { data, error } = await supabase
       .from('devices')
@@ -320,12 +404,8 @@ router.post('/update_device', async (req, res) => {
   }
 });
 
-// ============================================
-// TEMPERATURE MONITORING
-// ============================================
-
-// Update hot zone
-router.post('/update_hot_zone', async (req, res) => {
+// Update hot zone - Requires authentication or device auth
+router.post('/update_hot_zone', optionalAuth, async (req, res) => {
   try {
     const { device_id, temp, humidity } = req.body;
 
@@ -361,8 +441,8 @@ router.post('/update_hot_zone', async (req, res) => {
   }
 });
 
-// Update cold zone
-router.post('/update_cold_zone', async (req, res) => {
+// Update cold zone - Requires authentication or device auth
+router.post('/update_cold_zone', optionalAuth, async (req, res) => {
   try {
     const { device_id, temp, humidity } = req.body;
 
@@ -409,8 +489,8 @@ router.post('/update_cold_zone', async (req, res) => {
   }
 });
 
-// Update battery
-router.post('/update_battery', async (req, res) => {
+// Update battery - Requires authentication or device auth
+router.post('/update_battery', optionalAuth, async (req, res) => {
   try {
     const { device_id, charge_level, voltage, is_charging } = req.body;
 
@@ -447,14 +527,23 @@ router.post('/update_battery', async (req, res) => {
   }
 });
 
-// ============================================
-// CONTROL ENDPOINTS
-// ============================================
-
-// Update hot zone settings
-router.post('/update_hot_zone_settings', async (req, res) => {
+// Update hot zone settings - Requires authentication
+router.post('/update_hot_zone_settings', verifyToken, async (req, res) => {
   try {
     const { device_id, target_temp, heater_on, fan_on } = req.body;
+
+    // Verify ownership
+    const { data: device } = await supabase
+      .from('devices')
+      .select('owner_id')
+      .eq('id', device_id)
+      .single();
+
+    if (device.owner_id !== req.user.id) {
+      return res.status(403).json({ 
+        message: 'Unauthorized to update this device' 
+      });
+    }
 
     const { data, error } = await supabase
       .from('devices')
@@ -476,23 +565,29 @@ router.post('/update_hot_zone_settings', async (req, res) => {
   }
 });
 
-// Update cold zone settings
-router.post('/update_cold_zone_settings', async (req, res) => {
+// Update cold zone settings - Requires authentication
+router.post('/update_cold_zone_settings', verifyToken, async (req, res) => {
   try {
     const { device_id, target_temp, cooler_on, fan_on } = req.body;
 
-    // Check if device is dual-zone
+    // Verify ownership
     const { data: device } = await supabase
       .from('devices')
-      .select('bag_type')
+      .select('owner_id, bag_type')
       .eq('id', device_id)
       .single();
+
+    if (device.owner_id !== req.user.id) {
+      return res.status(403).json({ 
+        message: 'Unauthorized to update this device' 
+      });
+    }
 
     if (device?.bag_type !== 'dual-zone') {
       return res.status(400).json({ message: "This bag doesn't have a cold zone" });
     }
 
-    const { data, error } = await supabase
+    const { data: updated, error } = await supabase
       .from('devices')
       .update({
         cold_zone_target_temp: target_temp,
@@ -505,15 +600,15 @@ router.post('/update_cold_zone_settings', async (req, res) => {
 
     if (error) throw error;
 
-    res.json({ success: true, data });
+    res.json({ success: true, data: updated });
   } catch (err) {
     console.error('Update cold zone settings error:', err);
     res.status(400).json({ message: 'Update failed', error: err.message });
   }
 });
 
-// Get alerts
-router.get('/alerts', async (req, res) => {
+// Get alerts - Requires authentication
+router.get('/alerts', verifyToken, async (req, res) => {
   try {
     const { device_id } = req.query;
 
@@ -524,6 +619,13 @@ router.get('/alerts', async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // Verify ownership
+    if (device.owner_id !== req.user.id) {
+      return res.status(403).json({ 
+        message: 'Unauthorized to access this device' 
+      });
+    }
 
     const alerts = [];
 
@@ -580,8 +682,8 @@ router.get('/alerts', async (req, res) => {
 // ADMIN ENDPOINTS
 // ============================================
 
-// Get all devices (admin)
-router.get('/all-devices', async (req, res) => {
+// Get all devices (admin only)
+router.get('/all-devices', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { data: devices, error } = await supabase
       .from('devices')
@@ -597,8 +699,8 @@ router.get('/all-devices', async (req, res) => {
   }
 });
 
-// Get admin statistics
-router.get('/admin-stats', async (req, res) => {
+// Get admin statistics (admin only)
+router.get('/admin-stats', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { data: devices, error } = await supabase
       .from('devices')

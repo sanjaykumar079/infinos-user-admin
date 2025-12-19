@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import { deviceAPI } from '../utils/api';
 
 const ClaimDeviceModal = ({ user, onClose, onDeviceClaimed }) => {
   const [step, setStep] = useState(1); // 1: Enter code, 2: Verify, 3: Name device
@@ -19,9 +19,7 @@ const ClaimDeviceModal = ({ user, onClose, onDeviceClaimed }) => {
     setError('');
 
     try {
-      const response = await axios.get('/device/verify-code', {
-        params: { deviceCode: deviceCode.trim().toUpperCase() }
-      });
+      const response = await deviceAPI.verifyDeviceCode(deviceCode.trim().toUpperCase());
 
       if (response.data.valid) {
         setDeviceInfo(response.data.device);
@@ -44,11 +42,11 @@ const ClaimDeviceModal = ({ user, onClose, onDeviceClaimed }) => {
     setError('');
 
     try {
-      const response = await axios.post('/device/claim', {
-        deviceCode: deviceCode.trim().toUpperCase(),
-        ownerId: user.id,
-        deviceName: deviceName.trim()
-      });
+      const response = await deviceAPI.claimDevice(
+        deviceCode.trim().toUpperCase(),
+        user.id,
+        deviceName.trim()
+      );
 
       if (response.data.device) {
         onDeviceClaimed?.();

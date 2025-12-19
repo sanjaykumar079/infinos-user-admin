@@ -1,8 +1,8 @@
 import "./Control.css";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { supabase } from "./supabaseClient";
+import api, { deviceAPI } from "./utils/api";
 import Navbar from "./components/layout/Navbar";
 import Card from "./components/ui/Card";
 import Button from "./components/ui/Button";
@@ -42,9 +42,7 @@ function BagControl() {
     if (!deviceId) return;
 
     try {
-      const res = await axios.get("/device/get_device", {
-        params: { device_id: deviceId },
-      });
+      const res = await deviceAPI.getDevice(deviceId);
       setDevice(res.data);
       setLoading(false);
     } catch (err) {
@@ -55,12 +53,7 @@ function BagControl() {
 
   const updateHotZoneSettings = async (targetTemp, heaterOn, fanOn) => {
     try {
-      await axios.post("/device/update_hot_zone_settings", {
-        device_id: device._id,
-        target_temp: targetTemp,
-        heater_on: heaterOn,
-        fan_on: fanOn,
-      });
+      await deviceAPI.updateHotZoneSettings(device._id, targetTemp, heaterOn, fanOn);
       await getData();
     } catch (err) {
       console.error("Error updating hot zone:", err);
@@ -69,12 +62,7 @@ function BagControl() {
 
   const updateColdZoneSettings = async (targetTemp, coolerOn, fanOn) => {
     try {
-      await axios.post("/device/update_cold_zone_settings", {
-        device_id: device._id,
-        target_temp: targetTemp,
-        cooler_on: coolerOn,
-        fan_on: fanOn,
-      });
+      await deviceAPI.updateColdZoneSettings(device._id, targetTemp, coolerOn, fanOn);
       await getData();
     } catch (err) {
       console.error("Error updating cold zone:", err);
@@ -122,9 +110,7 @@ function BagControl() {
       setDownloadingLogs(true);
 
       const deviceId = device._id;
-      const res = await axios.get("/device/get_device", {
-        params: { device_id: deviceId },
-      });
+      const res = await deviceAPI.getDevice(deviceId);
 
       const currentDevice = res.data;
       console.log("📱 Current device data:", currentDevice);
@@ -199,7 +185,7 @@ function BagControl() {
 
       if (heaterIds.length > 0) {
         try {
-          const heatersRes = await axios.get("/device/get_heaters", {
+          const heatersRes = await api.get("/device/get_heaters", {
             params: { heater_ids: heaterIds },
           });
           const heaters = Array.isArray(heatersRes.data) ? heatersRes.data : [];
@@ -327,7 +313,7 @@ function BagControl() {
         }
 
         try {
-          const coolersRes = await axios.get("/device/get_coolers", {
+          const coolersRes = await api.get("/device/get_coolers", {
             params: { cooler_ids: coolerIds },
           });
           const coolers = Array.isArray(coolersRes.data) ? coolersRes.data : [];
@@ -455,7 +441,7 @@ function BagControl() {
         }
 
         try {
-          const batteriesRes = await axios.get("/device/get_batteries", {
+          const batteriesRes = await api.get("/device/get_batteries", {
             params: { battery_ids: batteryIds },
           });
           const batteries = Array.isArray(batteriesRes.data)
