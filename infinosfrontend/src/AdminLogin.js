@@ -1,7 +1,12 @@
+// FILE: infinosfrontend/src/AdminLogin.js
+// FIXED - Simplified Admin Authentication
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAdminAuth } from "./contexts/AdminAuthContext";
 import "./AdminLogin.css";
+
+// Admin passkey (should match backend .env)
+const ADMIN_PASSKEY = "INFINOS2025ADMIN";
 
 function AdminLogin() {
   const [passkey, setPasskey] = useState("");
@@ -9,41 +14,38 @@ function AdminLogin() {
   const [error, setError] = useState("");
   const [showPasskey, setShowPasskey] = useState(false);
   const navigate = useNavigate();
-  const { loginAdmin } = useAdminAuth();
 
-  const handleAdminLogin = async (e) => {
-  e.preventDefault();
+  const handleAdminLogin = (e) => {
+    e.preventDefault();
 
-  if (!passkey.trim()) {
-    setError("Please enter your passkey");
-    return;
-  }
-
-  setLoading(true);
-  setError("");
-
-  // Small delay to show loading state
-  setTimeout(() => {
-    console.log('Attempting admin login...');
-    const result = loginAdmin(passkey);
-
-    if (result.success) {
-      console.log('Login successful, navigating to dashboard...');
-      navigate('/admin/dashboard');
-    } else {
-      console.log('Login failed:', result.error);
-      setError(result.error || "Invalid passkey. Please try again.");
-      setPasskey("");
+    if (!passkey.trim()) {
+      setError("Please enter your passkey");
+      return;
     }
 
-    setLoading(false);
-  }, 500);
-};
+    setLoading(true);
+    setError("");
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !loading) {
-      handleAdminLogin(e);
-    }
+    // Simulate async validation
+    setTimeout(() => {
+      const normalizedInput = passkey.trim();
+      
+      if (normalizedInput === ADMIN_PASSKEY) {
+        // Set admin session in localStorage (24 hour expiry)
+        const expiryTime = Date.now() + (24 * 60 * 60 * 1000);
+        localStorage.setItem('admin_authenticated', 'true');
+        localStorage.setItem('admin_auth_expiry', expiryTime.toString());
+        localStorage.setItem('admin_passkey', normalizedInput);
+        
+        console.log('✅ Admin login successful');
+        navigate('/admin/dashboard');
+      } else {
+        setError('Invalid admin passkey. Please try again.');
+        setPasskey("");
+      }
+
+      setLoading(false);
+    }, 500);
   };
 
   return (
@@ -190,7 +192,6 @@ function AdminLogin() {
                     placeholder="Enter your passkey"
                     value={passkey}
                     onChange={(e) => setPasskey(e.target.value)}
-                    onKeyPress={handleKeyPress}
                     className="input-field"
                     autoFocus
                     disabled={loading}
