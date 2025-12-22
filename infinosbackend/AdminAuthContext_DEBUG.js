@@ -1,15 +1,16 @@
-// FILE: infinosfrontend/src/contexts/AdminAuthContext.js
-// Fixed Admin Authentication with Supabase integration
+// FILE: AdminAuthContext_DEBUG.js
+// Simplified version with extensive logging for debugging
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
 
 const AdminAuthContext = createContext(null);
 
-// Admin passkey from environment variable
-const ADMIN_PASSKEY = process.env.REACT_APP_ADMIN_PASSKEY || "INFINOS2025ADMIN";
+// HARDCODED passkey for testing - should match exactly
+const ADMIN_PASSKEY = "INFINOS2025ADMIN";
 
-console.log('🔐 Admin Authentication System Initialized');
+console.log('🔐 AdminAuthContext loaded');
+console.log('📝 Expected passkey:', ADMIN_PASSKEY);
+console.log('📝 Passkey length:', ADMIN_PASSKEY.length);
 
 export const AdminAuthProvider = ({ children }) => {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
@@ -21,35 +22,48 @@ export const AdminAuthProvider = ({ children }) => {
   }, []);
 
   const checkAdminAuth = async () => {
+    console.log('🔍 Checking admin authentication...');
     try {
-      // Check if admin session exists in localStorage
       const adminAuth = localStorage.getItem('admin_authenticated');
       const adminExpiry = localStorage.getItem('admin_auth_expiry');
       const adminPasskeyStored = localStorage.getItem('admin_passkey');
+      
+      console.log('📦 LocalStorage values:', {
+        adminAuth,
+        adminExpiry,
+        adminPasskeyStored
+      });
       
       if (adminAuth === 'true' && adminExpiry && adminPasskeyStored) {
         const expiryTime = parseInt(adminExpiry);
         const now = Date.now();
         
-        // Check if session is still valid (24 hours)
+        console.log('⏰ Expiry check:', {
+          expiryTime,
+          now,
+          isValid: now < expiryTime
+        });
+        
         if (now < expiryTime) {
-          // Verify the passkey is still correct
           if (adminPasskeyStored === ADMIN_PASSKEY) {
             setIsAdminAuthenticated(true);
             setAdminUser({ role: 'admin', passkey: adminPasskeyStored });
             console.log('✅ Admin session restored');
           } else {
-            console.log('❌ Stored passkey mismatch, clearing session');
+            console.log('❌ Stored passkey mismatch');
+            console.log('   Stored:', adminPasskeyStored);
+            console.log('   Expected:', ADMIN_PASSKEY);
             clearAdminSession();
           }
         } else {
-          // Session expired
           console.log('⏰ Admin session expired');
           clearAdminSession();
         }
+      } else {
+        console.log('ℹ️ No admin session found');
       }
     } catch (error) {
-      console.error('Error checking admin auth:', error);
+      console.error('❌ Error checking admin auth:', error);
       clearAdminSession();
     } finally {
       setLoading(false);
@@ -57,6 +71,7 @@ export const AdminAuthProvider = ({ children }) => {
   };
 
   const clearAdminSession = () => {
+    console.log('🧹 Clearing admin session...');
     localStorage.removeItem('admin_authenticated');
     localStorage.removeItem('admin_auth_expiry');
     localStorage.removeItem('admin_passkey');
@@ -65,18 +80,40 @@ export const AdminAuthProvider = ({ children }) => {
   };
 
   const loginAdmin = async (passkey) => {
+    console.log('\n🔑 Admin login attempt started');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
     try {
+      // Log raw input
+      console.log('📥 Raw input:', passkey);
+      console.log('📏 Raw length:', passkey?.length);
+      
       // Normalize input
       const normalizedInput = (passkey || '').trim();
       const normalizedExpected = ADMIN_PASSKEY.trim();
       
-      console.log('🔑 Admin login attempt');
-      console.log('📝 Passkey length:', normalizedInput.length);
-      console.log('📝 Expected length:', normalizedExpected.length);
+      console.log('\n📝 After normalization:');
+      console.log('   Input:', `"${normalizedInput}"`);
+      console.log('   Expected:', `"${normalizedExpected}"`);
+      console.log('   Input length:', normalizedInput.length);
+      console.log('   Expected length:', normalizedExpected.length);
       
-      // Verify passkey
-      if (normalizedInput !== normalizedExpected) {
-        console.log('❌ Invalid passkey');
+      // Character-by-character comparison
+      console.log('\n🔤 Character comparison:');
+      for (let i = 0; i < Math.max(normalizedInput.length, normalizedExpected.length); i++) {
+        const inputChar = normalizedInput[i] || '(missing)';
+        const expectedChar = normalizedExpected[i] || '(missing)';
+        const match = inputChar === expectedChar ? '✅' : '❌';
+        console.log(`   [${i}] "${inputChar}" vs "${expectedChar}" ${match}`);
+      }
+      
+      // Final comparison
+      const isMatch = normalizedInput === normalizedExpected;
+      console.log('\n🎯 Final result:', isMatch ? '✅ MATCH' : '❌ NO MATCH');
+      
+      if (!isMatch) {
+        console.log('❌ Login failed - passkey mismatch');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
         return { 
           success: false, 
           error: 'Invalid admin passkey. Please check and try again.' 
@@ -87,17 +124,20 @@ export const AdminAuthProvider = ({ children }) => {
       setIsAdminAuthenticated(true);
       setAdminUser({ role: 'admin', passkey: normalizedInput });
       
-      // Store in localStorage with 24-hour expiry
+      // Store in localStorage
       const expiryTime = Date.now() + (24 * 60 * 60 * 1000);
       localStorage.setItem('admin_authenticated', 'true');
       localStorage.setItem('admin_auth_expiry', expiryTime.toString());
       localStorage.setItem('admin_passkey', normalizedInput);
       
       console.log('✅ Admin login successful');
+      console.log('📦 Stored in localStorage');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
       
       return { success: true };
     } catch (error) {
       console.error('❌ Admin login error:', error);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
       return { 
         success: false, 
         error: 'An error occurred during login. Please try again.' 

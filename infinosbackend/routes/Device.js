@@ -1,10 +1,11 @@
 // FILE: infinosbackend/routes/Device.js
-// Updated routes with JWT authentication
+// Enhanced routes with admin seed devices functionality
 
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const { verifyToken, verifyAdmin, optionalAuth } = require('../middleware/authMiddleware');
+const crypto = require('crypto');
 
 // Normalize Supabase rows into the shape expected by the frontend
 const formatDeviceListItem = (device) => ({
@@ -40,6 +41,18 @@ const formatDeviceListItem = (device) => ({
     lowBattery: device.safety_low_battery,
   },
 });
+
+// Helper function to generate device code
+const generateDeviceCode = () => {
+  const part1 = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const part2 = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `INF-${part1}-${part2}`;
+};
+
+// Helper function to generate device secret
+const generateDeviceSecret = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
 
 // ============================================
 // PUBLIC ENDPOINTS (No authentication required)
@@ -682,9 +695,19 @@ router.get('/alerts', verifyToken, async (req, res) => {
 // ADMIN ENDPOINTS
 // ============================================
 
-// Get all devices (admin only)
-router.get('/all-devices', verifyToken, verifyAdmin, async (req, res) => {
+// Get all devices (admin only) - NO JWT REQUIRED, uses passkey
+router.get('/all-devices', async (req, res) => {
   try {
+    // Check admin passkey in header
+    const adminPasskey = req.headers['x-admin-passkey'];
+    const expectedPasskey = process.env.ADMIN_PASSKEY || 'INFINOS2025ADMIN';
+
+    if (!adminPasskey || adminPasskey !== expectedPasskey) {
+      return res.status(403).json({ 
+        message: 'Admin authentication required' 
+      });
+    }
+
     const { data: devices, error } = await supabase
       .from('devices')
       .select('*')
@@ -699,9 +722,19 @@ router.get('/all-devices', verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-// Get admin statistics (admin only)
-router.get('/admin-stats', verifyToken, verifyAdmin, async (req, res) => {
+// Get admin statistics (admin only) - NO JWT REQUIRED, uses passkey
+router.get('/admin-stats', async (req, res) => {
   try {
+    // Check admin passkey in header
+    const adminPasskey = req.headers['x-admin-passkey'];
+    const expectedPasskey = process.env.ADMIN_PASSKEY || 'INFINOS2025ADMIN';
+
+    if (!adminPasskey || adminPasskey !== expectedPasskey) {
+      return res.status(403).json({ 
+        message: 'Admin authentication required' 
+      });
+    }
+
     const { data: devices, error } = await supabase
       .from('devices')
       .select('*');
@@ -734,6 +767,91 @@ router.get('/admin-stats', verifyToken, verifyAdmin, async (req, res) => {
   } catch (err) {
     console.error('Get admin stats error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Seed devices (admin only) - Create multiple devices at once
+router.post('/seed-devices', async (req, res) => {
+  try {
+    // Check admin passkey in header
+    const adminPasskey = req.headers['x-admin-passkey'];
+    const expectedPasskey = process.env.ADMIN_PASSKEY || 'INFINOS2025ADMIN';
+
+    if (!adminPasskey || adminPasskey !== expectedPasskey) {
+      return res.status(403).json({ 
+        message: 'Admin authentication required' 
+      });
+    }
+
+    const { bagType, quantity } = req.body;
+
+    if (!bagType || !['dual-zone', 'heating-only'].includes(bagType)) {
+      return res.status(400).json({ 
+        message: 'Invalid bag type. Must be "dual-zone" or "heating-only"' 
+      });
+    }
+
+    if (!quantity || quantity < 1 || quantity > 100) {
+      return res.status(400).json({ 
+        message: 'Quantity must be between 1 and 100' 
+      });
+    }
+
+    // Generate devices
+    const devicesToCreate = [];
+    for (let i = 0; i < quantity; i++) {
+      devicesToCreate.push({
+        name: `${bagType === 'dual-zone' ? 'Dual-Zone' : 'Heating-Only'} Bag ${Date.now()}-${i}`,
+        device_code: generateDeviceCode(),
+        device_secret: generateDeviceSecret(),
+        bag_type: bagType,
+        hardware_version: 'v2.0',
+        manufacturing_date: new Date().toISOString(),
+        status: false,
+        is_claimed: false,
+        hot_zone_current_temp: 25,
+        hot_zone_target_temp: 60,
+        hot_zone_current_humidity: 50,
+        hot_zone_heater_on: false,
+        hot_zone_fan_on: false,
+        cold_zone_current_temp: bagType === 'dual-zone' ? 25 : null,
+        cold_zone_target_temp: bagType === 'dual-zone' ? 5 : null,
+        cold_zone_current_humidity: bagType === 'dual-zone' ? 60 : null,
+        cold_zone_cooler_on: bagType === 'dual-zone' ? false : null,
+        cold_zone_fan_on: bagType === 'dual-zone' ? false : null,
+        battery_charge_level: 100,
+        battery_voltage: 12.6,
+        battery_is_charging: false,
+        safety_min_temp: 0,
+        safety_max_temp: 100,
+        safety_low_battery: 20,
+        created_at: new Date().toISOString()
+      });
+    }
+
+    // Insert into database
+    const { data: createdDevices, error } = await supabase
+      .from('devices')
+      .insert(devicesToCreate)
+      .select();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: `Successfully created ${quantity} ${bagType} device(s)`,
+      devices: createdDevices.map(d => ({
+        code: d.device_code,
+        secret: d.device_secret,
+        type: d.bag_type
+      }))
+    });
+  } catch (err) {
+    console.error('Seed devices error:', err);
+    res.status(500).json({ 
+      message: 'Failed to create devices', 
+      error: err.message 
+    });
   }
 });
 

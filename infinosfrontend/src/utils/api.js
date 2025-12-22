@@ -1,5 +1,5 @@
 // FILE: infinosfrontend/src/utils/api.js
-// Enhanced API utility with JWT authentication
+// Enhanced API utility with JWT authentication and admin passkey support
 
 import axios from 'axios';
 import { authHelpers } from '../supabaseClient';
@@ -13,15 +13,23 @@ const api = axios.create({
   },
 });
 
-// Request interceptor - Add JWT token to all requests
+// Request interceptor - Add JWT token or admin passkey to requests
 api.interceptors.request.use(
   async (config) => {
     try {
-      // Get fresh access token from Supabase
-      const accessToken = await authHelpers.getAccessToken();
+      // Check if this is an admin request
+      const adminPasskey = localStorage.getItem('admin_passkey');
       
-      if (accessToken) {
-        config.headers.Authorization = `Bearer ${accessToken}`;
+      if (adminPasskey && config.url?.includes('admin')) {
+        // Add admin passkey to header for admin endpoints
+        config.headers['x-admin-passkey'] = adminPasskey;
+      } else {
+        // Get fresh access token from Supabase for regular user endpoints
+        const accessToken = await authHelpers.getAccessToken();
+        
+        if (accessToken) {
+          config.headers.Authorization = `Bearer ${accessToken}`;
+        }
       }
 
       return config;
@@ -69,12 +77,20 @@ api.interceptors.response.use(
       }
     }
 
+    // Handle 403 for admin endpoints
+    if (error.response?.status === 403 && originalRequest.url?.includes('admin')) {
+      console.error('Admin authentication failed');
+      // Clear admin session
+      localStorage.removeItem('admin_authenticated');
+      localStorage.removeItem('admin_auth_expiry');
+      localStorage.removeItem('admin_passkey');
+      window.location.href = '/admin/login';
+      return Promise.reject(error);
+    }
+
     // Handle other errors
     if (error.response) {
       switch (error.response.status) {
-        case 403:
-          console.error('Access forbidden - insufficient permissions');
-          break;
         case 404:
           console.error('Resource not found');
           break;
@@ -161,9 +177,10 @@ export const deviceAPI = {
   // Get alerts
   getAlerts: (deviceId) => api.get('/device/alerts', { params: { device_id: deviceId } }),
   
-  // Admin endpoints
+  // Admin endpoints (uses admin passkey in header)
   getAllDevices: () => api.get('/device/all-devices'),
   getAdminStats: () => api.get('/device/admin-stats'),
+  seedDevices: (bagType, quantity) => api.post('/device/seed-devices', { bagType, quantity }),
 };
 
 // Export the configured axios instance for non-device endpoints
@@ -200,4 +217,3 @@ export const getCurrentUser = async () => {
     return null;
   }
 };
-
