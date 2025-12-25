@@ -1,5 +1,5 @@
 // FILE: infinosfrontend/src/AdminLogin.js
-// FIXED - Proper Admin Authentication
+// FIXED - Better error handling and debugging
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -17,34 +17,54 @@ function AdminLogin() {
   const handleAdminLogin = async (e) => {
     e.preventDefault();
 
-    if (!passkey.trim()) {
+    // Clear previous errors
+    setError("");
+
+    // Trim input
+    const trimmedPasskey = passkey.trim();
+
+    if (!trimmedPasskey) {
       setError("Please enter your admin passkey");
       return;
     }
 
+    console.log('🔐 Login attempt with passkey length:', trimmedPasskey.length);
+    console.log('🔐 Passkey:', trimmedPasskey);
+
     setLoading(true);
-    setError("");
 
     try {
-      console.log('🔐 Attempting admin login...');
-      
-      // Call login function from context
-      const result = await loginAdmin(passkey.trim());
+      const result = await loginAdmin(trimmedPasskey);
       
       if (result.success) {
-        console.log('✅ Admin login successful - redirecting to dashboard');
+        console.log('✅ Login successful - redirecting');
         navigate('/admin/dashboard');
       } else {
-        console.log('❌ Admin login failed:', result.error);
+        console.log('❌ Login failed:', result.error);
         setError(result.error || 'Invalid admin passkey. Please try again.');
         setPasskey("");
       }
     } catch (err) {
-      console.error('❌ Admin login exception:', err);
+      console.error('❌ Login exception:', err);
       setError('An error occurred during login. Please try again.');
       setPasskey("");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasskeyChange = (e) => {
+    const value = e.target.value;
+    setPasskey(value);
+    // Clear error when user starts typing
+    if (error) {
+      setError("");
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleAdminLogin(e);
     }
   };
 
@@ -191,11 +211,13 @@ function AdminLogin() {
                     type={showPasskey ? "text" : "password"}
                     placeholder="Enter your passkey"
                     value={passkey}
-                    onChange={(e) => setPasskey(e.target.value)}
+                    onChange={handlePasskeyChange}
+                    onKeyPress={handleKeyPress}
                     className="input-field"
                     autoFocus
                     disabled={loading}
                     autoComplete="off"
+                    spellCheck="false"
                   />
                   <button
                     type="button"
@@ -216,6 +238,15 @@ function AdminLogin() {
                     )}
                   </button>
                 </div>
+                <p className="input-hint">
+                  Default passkey: <code style={{ 
+                    background: '#f3f4f6', 
+                    padding: '2px 6px', 
+                    borderRadius: '4px',
+                    fontFamily: 'monospace',
+                    fontSize: '13px'
+                  }}>INFINOS2025ADMIN</code>
+                </p>
                 <p className="input-hint">
                   Contact your system administrator if you've forgotten your passkey
                 </p>

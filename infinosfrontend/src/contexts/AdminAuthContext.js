@@ -1,11 +1,11 @@
 // FILE: infinosfrontend/src/contexts/AdminAuthContext.js
-// FIXED - Better Admin Authentication with proper validation
+// FIXED - Admin Authentication with better debugging and validation
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AdminAuthContext = createContext(null);
 
-// Admin passkey - should match backend
+// Admin passkey - MUST match exactly with backend .env
 const ADMIN_PASSKEY = "INFINOS2025ADMIN";
 
 export const AdminAuthProvider = ({ children }) => {
@@ -66,11 +66,17 @@ export const AdminAuthProvider = ({ children }) => {
   const loginAdmin = async (passkey) => {
     try {
       console.log('🔑 Admin login attempt');
-      console.log('📝 Input passkey length:', passkey?.length);
-      console.log('📝 Expected passkey length:', ADMIN_PASSKEY.length);
+      console.log('📝 Expected passkey:', ADMIN_PASSKEY);
+      console.log('📝 Expected length:', ADMIN_PASSKEY.length);
       
-      // Trim and normalize input
-      const normalizedInput = (passkey || '').trim();
+      // Trim and normalize input - remove ALL whitespace
+      const normalizedInput = (passkey || '').replace(/\s+/g, '').toUpperCase();
+      const normalizedExpected = ADMIN_PASSKEY.replace(/\s+/g, '').toUpperCase();
+      
+      console.log('📝 Normalized input:', normalizedInput);
+      console.log('📝 Input length:', normalizedInput.length);
+      console.log('📝 Normalized expected:', normalizedExpected);
+      console.log('📝 Expected length:', normalizedExpected.length);
       
       if (!normalizedInput) {
         console.log('❌ Empty passkey');
@@ -80,11 +86,16 @@ export const AdminAuthProvider = ({ children }) => {
         };
       }
       
-      // Verify passkey
-      if (normalizedInput !== ADMIN_PASSKEY) {
+      // Compare normalized strings
+      if (normalizedInput !== normalizedExpected) {
         console.log('❌ Invalid passkey');
-        console.log('Expected:', ADMIN_PASSKEY);
-        console.log('Received:', normalizedInput);
+        console.log('🔍 Character-by-character comparison:');
+        for (let i = 0; i < Math.max(normalizedInput.length, normalizedExpected.length); i++) {
+          const inputChar = normalizedInput[i] || 'MISSING';
+          const expectedChar = normalizedExpected[i] || 'MISSING';
+          const match = inputChar === expectedChar ? '✓' : '✗';
+          console.log(`  [${i}] Input: "${inputChar}" Expected: "${expectedChar}" ${match}`);
+        }
         return { 
           success: false, 
           error: 'Invalid admin passkey. Please check and try again.' 
@@ -94,13 +105,13 @@ export const AdminAuthProvider = ({ children }) => {
       // Set admin session
       console.log('✅ Passkey verified - setting session');
       setIsAdminAuthenticated(true);
-      setAdminUser({ role: 'admin', passkey: normalizedInput });
+      setAdminUser({ role: 'admin', passkey: ADMIN_PASSKEY });
       
       // Store in localStorage with 24-hour expiry
       const expiryTime = Date.now() + (24 * 60 * 60 * 1000);
       localStorage.setItem('admin_authenticated', 'true');
       localStorage.setItem('admin_auth_expiry', expiryTime.toString());
-      localStorage.setItem('admin_passkey', normalizedInput);
+      localStorage.setItem('admin_passkey', ADMIN_PASSKEY);
       
       console.log('✅ Admin login successful');
       

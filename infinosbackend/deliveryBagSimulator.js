@@ -4,8 +4,8 @@ const axios = require("axios");
 const API_URL = "http://localhost:4000/device";
 
 // ⚠️ REPLACE WITH YOUR BAG CREDENTIALS
-const DEVICE_CODE = "INF-5FA7-EEFA";
-const DEVICE_SECRET = "e809125c1d08c5615e42bd6bec7a4e8106540710d142487f280eef4c4a8a57d1";
+const DEVICE_CODE = "INF-9FC2-FDB3";
+const DEVICE_SECRET = "2a69b0f16ab9ae8ef3a26ed33022897d6863f249ebd62c8cfb4a7cf3ddd759b7";
 
 let deviceId = null;
 let bagType = null;

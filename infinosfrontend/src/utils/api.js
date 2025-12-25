@@ -1,5 +1,5 @@
 // FILE: infinosfrontend/src/utils/api.js
-// Enhanced API utility with JWT authentication and admin passkey support
+// FIXED: Properly sends admin passkey in request headers
 
 import axios from 'axios';
 import { authHelpers } from '../supabaseClient';
@@ -13,18 +13,29 @@ const api = axios.create({
   },
 });
 
-// Request interceptor - Add JWT token or admin passkey to requests
+// Request interceptor - FIXED to actually send admin passkey
 api.interceptors.request.use(
   async (config) => {
     try {
       // Check if this is an admin request
-      const adminPasskey = localStorage.getItem('admin_passkey');
+      const isAdminRoute = config.url?.includes('/admin') || 
+                          config.url?.includes('admin-stats') || 
+                          config.url?.includes('all-devices') ||
+                          config.url?.includes('seed-devices');
       
-      if (adminPasskey && config.url?.includes('admin')) {
-        // Add admin passkey to header for admin endpoints
-        config.headers['x-admin-passkey'] = adminPasskey;
+      if (isAdminRoute) {
+        // Get admin passkey from localStorage
+        const adminPasskey = localStorage.getItem('admin_passkey');
+        
+        if (adminPasskey) {
+          // ✅ CRITICAL: Send passkey in header
+          config.headers['x-admin-passkey'] = adminPasskey;
+          console.log('✅ Admin passkey added to request header');
+        } else {
+          console.warn('⚠️ No admin passkey found in localStorage');
+        }
       } else {
-        // Get fresh access token from Supabase for regular user endpoints
+        // Regular user request - add JWT
         const accessToken = await authHelpers.getAccessToken();
         
         if (accessToken) {
@@ -43,29 +54,48 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor - Handle token refresh and errors
+// Response interceptor - FIXED to handle admin 403 properly
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // Handle 401 Unauthorized - Token expired or invalid
+    // Handle 403 for admin endpoints
+    if (error.response?.status === 403) {
+      const isAdminRoute = originalRequest.url?.includes('/admin') || 
+                          originalRequest.url?.includes('admin-stats') || 
+                          originalRequest.url?.includes('all-devices') ||
+                          originalRequest.url?.includes('seed-devices');
+      
+      if (isAdminRoute) {
+        console.error('❌ Admin authentication failed - clearing session');
+        // Clear admin session
+        localStorage.removeItem('admin_authenticated');
+        localStorage.removeItem('admin_auth_expiry');
+        localStorage.removeItem('admin_passkey');
+        
+        // Only redirect if not already on login page
+        if (!window.location.pathname.includes('/admin/login')) {
+          window.location.href = '/admin/login';
+        }
+        return Promise.reject(error);
+      }
+    }
+
+    // Handle 401 Unauthorized for regular users
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        // Try to refresh the session
         const { data, error: refreshError } = await authHelpers.refreshSession();
 
         if (refreshError || !data.session) {
-          // Refresh failed - redirect to login
           console.error('Session refresh failed:', refreshError);
           await authHelpers.signOut();
           window.location.href = '/';
           return Promise.reject(error);
         }
 
-        // Retry the original request with new token
         const newAccessToken = data.session.access_token;
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(originalRequest);
@@ -75,17 +105,6 @@ api.interceptors.response.use(
         window.location.href = '/';
         return Promise.reject(error);
       }
-    }
-
-    // Handle 403 for admin endpoints
-    if (error.response?.status === 403 && originalRequest.url?.includes('admin')) {
-      console.error('Admin authentication failed');
-      // Clear admin session
-      localStorage.removeItem('admin_authenticated');
-      localStorage.removeItem('admin_auth_expiry');
-      localStorage.removeItem('admin_passkey');
-      window.location.href = '/admin/login';
-      return Promise.reject(error);
     }
 
     // Handle other errors
@@ -115,39 +134,21 @@ api.interceptors.response.use(
 
 // Device API calls
 export const deviceAPI = {
-  // Get all devices for a user
+  // User device endpoints
   getMyDevices: (ownerId) => api.get('/device/my-devices', { params: { ownerId } }),
-  
-  // Get device summary
   getSummary: (ownerId) => api.get('/device/summary', { params: { ownerId } }),
-  
-  // Get specific device
   getDevice: (deviceId) => api.get('/device/get_device', { params: { device_id: deviceId } }),
-  
-  // Verify device code
   verifyDeviceCode: (deviceCode) => api.get('/device/verify-code', { params: { deviceCode } }),
-  
-  // Claim device
   claimDevice: (deviceCode, ownerId, deviceName) => 
     api.post('/device/claim', { deviceCode, ownerId, deviceName }),
-  
-  // Authenticate device (for hardware)
   authenticateDevice: (deviceCode, deviceSecret) =>
     api.post('/device/auth', { deviceCode, deviceSecret }),
-  
-  // Update device status
   updateDevice: (deviceId, status) => 
     api.post('/device/update_device', { device_id: deviceId, status }),
-  
-  // Update hot zone
   updateHotZone: (deviceId, temp, humidity) =>
     api.post('/device/update_hot_zone', { device_id: deviceId, temp, humidity }),
-  
-  // Update cold zone
   updateColdZone: (deviceId, temp, humidity) =>
     api.post('/device/update_cold_zone', { device_id: deviceId, temp, humidity }),
-  
-  // Update battery
   updateBattery: (deviceId, chargeLevel, voltage, isCharging) =>
     api.post('/device/update_battery', { 
       device_id: deviceId, 
@@ -155,8 +156,6 @@ export const deviceAPI = {
       voltage, 
       is_charging: isCharging 
     }),
-  
-  // Update hot zone settings
   updateHotZoneSettings: (deviceId, targetTemp, heaterOn, fanOn) =>
     api.post('/device/update_hot_zone_settings', {
       device_id: deviceId,
@@ -164,8 +163,6 @@ export const deviceAPI = {
       heater_on: heaterOn,
       fan_on: fanOn,
     }),
-  
-  // Update cold zone settings
   updateColdZoneSettings: (deviceId, targetTemp, coolerOn, fanOn) =>
     api.post('/device/update_cold_zone_settings', {
       device_id: deviceId,
@@ -173,32 +170,25 @@ export const deviceAPI = {
       cooler_on: coolerOn,
       fan_on: fanOn,
     }),
-  
-  // Get alerts
   getAlerts: (deviceId) => api.get('/device/alerts', { params: { device_id: deviceId } }),
   
-  // Admin endpoints (uses admin passkey in header)
+  // Admin endpoints - passkey automatically added by interceptor
   getAllDevices: () => api.get('/device/all-devices'),
   getAdminStats: () => api.get('/device/admin-stats'),
   seedDevices: (bagType, quantity) => api.post('/device/seed-devices', { bagType, quantity }),
 };
 
-// Export the configured axios instance for non-device endpoints
+// Export the configured axios instance
 export default api;
 
 // User API calls
 export const userAPI = {
-  // Get user profile
   getProfile: (userId) => api.get(`/user/profile/${userId}`),
-  
-  // Update user profile
   updateProfile: (userId, updates) => api.put(`/user/profile/${userId}`, updates),
-  
-  // Delete user account
   deleteAccount: (userId) => api.delete(`/user/account/${userId}`),
 };
 
-// Helper function to check if user is authenticated
+// Helper functions
 export const isAuthenticated = async () => {
   try {
     const { session } = await authHelpers.getSession();
@@ -208,7 +198,6 @@ export const isAuthenticated = async () => {
   }
 };
 
-// Helper function to get current user
 export const getCurrentUser = async () => {
   try {
     const { user } = await authHelpers.getUser();
