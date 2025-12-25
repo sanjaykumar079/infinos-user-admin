@@ -1,15 +1,12 @@
 // FILE: infinosfrontend/src/contexts/AdminAuthContext.js
-// Fixed Admin Authentication with Supabase integration
+// FIXED - Better Admin Authentication with proper validation
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
 
 const AdminAuthContext = createContext(null);
 
-// Admin passkey from environment variable
-const ADMIN_PASSKEY = process.env.REACT_APP_ADMIN_PASSKEY || "INFINOS2025ADMIN";
-
-console.log('🔐 Admin Authentication System Initialized');
+// Admin passkey - should match backend
+const ADMIN_PASSKEY = "INFINOS2025ADMIN";
 
 export const AdminAuthProvider = ({ children }) => {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
@@ -22,7 +19,8 @@ export const AdminAuthProvider = ({ children }) => {
 
   const checkAdminAuth = async () => {
     try {
-      // Check if admin session exists in localStorage
+      console.log('🔍 Checking admin authentication...');
+      
       const adminAuth = localStorage.getItem('admin_authenticated');
       const adminExpiry = localStorage.getItem('admin_auth_expiry');
       const adminPasskeyStored = localStorage.getItem('admin_passkey');
@@ -43,13 +41,14 @@ export const AdminAuthProvider = ({ children }) => {
             clearAdminSession();
           }
         } else {
-          // Session expired
           console.log('⏰ Admin session expired');
           clearAdminSession();
         }
+      } else {
+        console.log('ℹ️ No admin session found');
       }
     } catch (error) {
-      console.error('Error checking admin auth:', error);
+      console.error('❌ Error checking admin auth:', error);
       clearAdminSession();
     } finally {
       setLoading(false);
@@ -66,17 +65,26 @@ export const AdminAuthProvider = ({ children }) => {
 
   const loginAdmin = async (passkey) => {
     try {
-      // Normalize input
-      const normalizedInput = (passkey || '').trim();
-      const normalizedExpected = ADMIN_PASSKEY.trim();
-      
       console.log('🔑 Admin login attempt');
-      console.log('📝 Passkey length:', normalizedInput.length);
-      console.log('📝 Expected length:', normalizedExpected.length);
+      console.log('📝 Input passkey length:', passkey?.length);
+      console.log('📝 Expected passkey length:', ADMIN_PASSKEY.length);
+      
+      // Trim and normalize input
+      const normalizedInput = (passkey || '').trim();
+      
+      if (!normalizedInput) {
+        console.log('❌ Empty passkey');
+        return { 
+          success: false, 
+          error: 'Please enter your admin passkey' 
+        };
+      }
       
       // Verify passkey
-      if (normalizedInput !== normalizedExpected) {
+      if (normalizedInput !== ADMIN_PASSKEY) {
         console.log('❌ Invalid passkey');
+        console.log('Expected:', ADMIN_PASSKEY);
+        console.log('Received:', normalizedInput);
         return { 
           success: false, 
           error: 'Invalid admin passkey. Please check and try again.' 
@@ -84,6 +92,7 @@ export const AdminAuthProvider = ({ children }) => {
       }
 
       // Set admin session
+      console.log('✅ Passkey verified - setting session');
       setIsAdminAuthenticated(true);
       setAdminUser({ role: 'admin', passkey: normalizedInput });
       

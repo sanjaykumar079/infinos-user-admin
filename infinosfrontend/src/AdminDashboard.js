@@ -1,8 +1,9 @@
-// FILE: infinosfrontend/src/AdminDashboard.js - COMPLETE UPDATED VERSION
+// FILE: infinosfrontend/src/AdminDashboard.js
+// FIXED - Better data loading, error handling, and responsive design
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api, { deviceAPI } from "./utils/api";
+import { deviceAPI } from "./utils/api";
 import { useAdminAuth } from "./contexts/AdminAuthContext";
 import "./AdminDashboard.css";
 
@@ -10,8 +11,10 @@ function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const navigate = useNavigate();
   const { logoutAdmin } = useAdminAuth();
 
@@ -19,25 +22,47 @@ function AdminDashboard() {
     fetchAdminData();
     const interval = setInterval(fetchAdminData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [retryCount]);
 
   const fetchAdminData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      console.log('📊 Fetching admin data...');
+      
+      // Verify admin passkey is present
+      const adminPasskey = localStorage.getItem('admin_passkey');
+      if (!adminPasskey) {
+        throw new Error('Admin authentication required');
+      }
       
       // Fetch admin statistics
       const statsRes = await deviceAPI.getAdminStats();
+      console.log('✅ Stats loaded:', statsRes.data);
       setStats(statsRes.data);
       
       // Fetch all devices
       const devicesRes = await deviceAPI.getAllDevices();
+      console.log('✅ Devices loaded:', devicesRes.data?.length || 0);
       setDevices(devicesRes.data || []);
       
       setLoading(false);
     } catch (err) {
-      console.error("Error fetching admin data:", err);
+      console.error("❌ Error fetching admin data:", err);
+      setError(err.response?.data?.message || err.message || 'Failed to load data');
       setLoading(false);
+      
+      // If authentication error, redirect to login
+      if (err.response?.status === 403) {
+        logoutAdmin();
+        navigate('/admin/login');
+      }
     }
+  };
+
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
   };
 
   const handleLogout = () => {
@@ -45,12 +70,41 @@ function AdminDashboard() {
     navigate('/admin/login');
   };
 
-  if (loading) {
+  if (loading && !stats) {
     return (
       <div className="admin-dashboard-layout">
         <div className="admin-loading">
           <div className="loading-spinner"></div>
           <p>Loading admin dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !stats) {
+    return (
+      <div className="admin-dashboard-layout">
+        <div className="admin-error">
+          <div className="error-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <circle cx="12" cy="12" r="10" strokeWidth="2"/>
+              <line x1="12" y1="8" x2="12" y2="12" strokeWidth="2"/>
+              <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2"/>
+            </svg>
+          </div>
+          <h2>Failed to Load Dashboard</h2>
+          <p>{error}</p>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+            <button className="admin-action-btn" onClick={handleRetry}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+              </svg>
+              Retry
+            </button>
+            <button className="admin-action-btn-secondary" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -75,7 +129,7 @@ function AdminDashboard() {
             </div>
           </div>
           
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div className="admin-header-actions">
             <button 
               className="admin-add-device-btn"
               onClick={() => setShowAddDeviceModal(true)}
@@ -84,7 +138,7 @@ function AdminDashboard() {
                 <line x1="12" y1="5" x2="12" y2="19"/>
                 <line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-              Add Device
+              <span className="btn-text">Add Device</span>
             </button>
             
             <button className="admin-logout-btn" onClick={handleLogout}>
@@ -93,7 +147,7 @@ function AdminDashboard() {
                 <polyline points="16 17 21 12 16 7" strokeWidth="2"/>
                 <line x1="21" y1="12" x2="9" y2="12" strokeWidth="2"/>
               </svg>
-              Logout
+              <span className="btn-text">Logout</span>
             </button>
           </div>
         </div>
@@ -114,7 +168,7 @@ function AdminDashboard() {
               </div>
               <div className="admin-stat-content">
                 <p className="admin-stat-label">Unique Owners</p>
-                <h2 className="admin-stat-value">{stats.uniqueOwners}</h2>
+                <h2 className="admin-stat-value">{stats.uniqueOwners || 0}</h2>
                 <p className="admin-stat-description">Active users</p>
               </div>
             </div>
@@ -128,7 +182,7 @@ function AdminDashboard() {
               </div>
               <div className="admin-stat-content">
                 <p className="admin-stat-label">Total Devices</p>
-                <h2 className="admin-stat-value">{stats.totalDevices}</h2>
+                <h2 className="admin-stat-value">{stats.totalDevices || 0}</h2>
                 <p className="admin-stat-description">All bags registered</p>
               </div>
             </div>
@@ -141,7 +195,7 @@ function AdminDashboard() {
               </div>
               <div className="admin-stat-content">
                 <p className="admin-stat-label">Online Devices</p>
-                <h2 className="admin-stat-value">{stats.onlineDevices}</h2>
+                <h2 className="admin-stat-value">{stats.onlineDevices || 0}</h2>
                 <p className="admin-stat-description">Currently active</p>
               </div>
             </div>
@@ -156,7 +210,7 @@ function AdminDashboard() {
               </div>
               <div className="admin-stat-content">
                 <p className="admin-stat-label">Offline Devices</p>
-                <h2 className="admin-stat-value">{stats.offlineDevices}</h2>
+                <h2 className="admin-stat-value">{stats.offlineDevices || 0}</h2>
                 <p className="admin-stat-description">Needs attention</p>
               </div>
             </div>
@@ -171,7 +225,7 @@ function AdminDashboard() {
               </div>
               <div className="admin-stat-content">
                 <p className="admin-stat-label">Dual-Zone Bags</p>
-                <h2 className="admin-stat-value">{stats.dualZoneBags}</h2>
+                <h2 className="admin-stat-value">{stats.dualZoneBags || 0}</h2>
                 <p className="admin-stat-description">Hot & Cold zones</p>
               </div>
             </div>
@@ -185,7 +239,7 @@ function AdminDashboard() {
               </div>
               <div className="admin-stat-content">
                 <p className="admin-stat-label">Heating-Only Bags</p>
-                <h2 className="admin-stat-value">{stats.heatingOnlyBags}</h2>
+                <h2 className="admin-stat-value">{stats.heatingOnlyBags || 0}</h2>
                 <p className="admin-stat-description">Hot zone only</p>
               </div>
             </div>
@@ -199,7 +253,7 @@ function AdminDashboard() {
               </div>
               <div className="admin-stat-content">
                 <p className="admin-stat-label">Claimed Devices</p>
-                <h2 className="admin-stat-value">{stats.claimedDevices}</h2>
+                <h2 className="admin-stat-value">{stats.claimedDevices || 0}</h2>
                 <p className="admin-stat-description">Assigned to users</p>
               </div>
             </div>
@@ -213,7 +267,7 @@ function AdminDashboard() {
               </div>
               <div className="admin-stat-content">
                 <p className="admin-stat-label">Unclaimed Devices</p>
-                <h2 className="admin-stat-value">{stats.unclaimedDevices}</h2>
+                <h2 className="admin-stat-value">{stats.unclaimedDevices || 0}</h2>
                 <p className="admin-stat-description">Available inventory</p>
               </div>
             </div>
@@ -232,7 +286,7 @@ function AdminDashboard() {
               <rect x="14" y="14" width="7" height="7" strokeWidth="2"/>
               <rect x="3" y="14" width="7" height="7" strokeWidth="2"/>
             </svg>
-            Overview
+            <span className="tab-text">Overview</span>
           </button>
           <button
             className={`admin-tab ${activeTab === "devices" ? "admin-tab-active" : ""}`}
@@ -242,7 +296,7 @@ function AdminDashboard() {
               <rect x="5" y="2" width="14" height="20" rx="2" strokeWidth="2"/>
               <path d="M12 18h.01" strokeWidth="2"/>
             </svg>
-            All Devices ({devices.length})
+            <span className="tab-text">All Devices ({devices.length})</span>
           </button>
         </div>
 
@@ -295,6 +349,15 @@ function AdminDashboard() {
                   </svg>
                   View All Devices
                 </button>
+                <button 
+                  className="admin-action-btn-secondary"
+                  onClick={handleRetry}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                  </svg>
+                  Refresh Data
+                </button>
               </div>
             </div>
           </div>
@@ -310,10 +373,10 @@ function AdminDashboard() {
                   <th>Type</th>
                   <th>Status</th>
                   <th>Claimed</th>
-                  <th>Battery</th>
-                  <th>Hot Zone</th>
-                  <th>Cold Zone</th>
-                  <th>Last Seen</th>
+                  <th className="hide-mobile">Battery</th>
+                  <th className="hide-mobile">Hot Zone</th>
+                  <th className="hide-mobile">Cold Zone</th>
+                  <th className="hide-mobile">Last Seen</th>
                 </tr>
               </thead>
               <tbody>
@@ -336,7 +399,7 @@ function AdminDashboard() {
                       </td>
                       <td>
                         <span className={`admin-type-badge ${device.bag_type === 'dual-zone' ? 'admin-type-dual' : 'admin-type-heating'}`}>
-                          {device.bag_type === 'dual-zone' ? 'Dual-Zone' : 'Heating-Only'}
+                          {device.bag_type === 'dual-zone' ? 'Dual' : 'Heat'}
                         </span>
                       </td>
                       <td>
@@ -346,17 +409,17 @@ function AdminDashboard() {
                       </td>
                       <td>
                         <span className={`admin-badge ${device.is_claimed ? 'admin-badge-success' : 'admin-badge-error'}`}>
-                          {device.is_claimed ? 'Claimed' : 'Available'}
+                          {device.is_claimed ? 'Yes' : 'No'}
                         </span>
                       </td>
-                      <td>{device.battery_charge_level?.toFixed(0) || 0}%</td>
-                      <td>{device.hot_zone_current_temp?.toFixed(1) || 'N/A'}°C</td>
-                      <td>
+                      <td className="hide-mobile">{device.battery_charge_level?.toFixed(0) || 0}%</td>
+                      <td className="hide-mobile">{device.hot_zone_current_temp?.toFixed(1) || 'N/A'}°C</td>
+                      <td className="hide-mobile">
                         {device.bag_type === 'dual-zone' 
                           ? `${device.cold_zone_current_temp?.toFixed(1) || 'N/A'}°C`
                           : '-'}
                       </td>
-                      <td>
+                      <td className="hide-mobile">
                         <small>{device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}</small>
                       </td>
                     </tr>
@@ -401,10 +464,7 @@ function AddDeviceModal({ onClose, onDeviceAdded }) {
     setCreatedDevices([]);
 
     try {
-      const response = await api.post('/device/seed-devices', {
-        bagType: formData.bagType,
-        quantity: parseInt(formData.quantity),
-      });
+      const response = await deviceAPI.seedDevices(formData.bagType, parseInt(formData.quantity));
 
       if (response.data.success) {
         setCreatedDevices(response.data.devices);

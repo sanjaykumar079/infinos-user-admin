@@ -1,12 +1,10 @@
 // FILE: infinosfrontend/src/AdminLogin.js
-// FIXED - Simplified Admin Authentication
+// FIXED - Proper Admin Authentication
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAdminAuth } from "./contexts/AdminAuthContext";
 import "./AdminLogin.css";
-
-// Admin passkey (should match backend .env)
-const ADMIN_PASSKEY = "INFINOS2025ADMIN";
 
 function AdminLogin() {
   const [passkey, setPasskey] = useState("");
@@ -14,38 +12,40 @@ function AdminLogin() {
   const [error, setError] = useState("");
   const [showPasskey, setShowPasskey] = useState(false);
   const navigate = useNavigate();
+  const { loginAdmin } = useAdminAuth();
 
-  const handleAdminLogin = (e) => {
+  const handleAdminLogin = async (e) => {
     e.preventDefault();
 
     if (!passkey.trim()) {
-      setError("Please enter your passkey");
+      setError("Please enter your admin passkey");
       return;
     }
 
     setLoading(true);
     setError("");
 
-    // Simulate async validation
-    setTimeout(() => {
-      const normalizedInput = passkey.trim();
+    try {
+      console.log('🔐 Attempting admin login...');
       
-      if (normalizedInput === ADMIN_PASSKEY) {
-        // Set admin session in localStorage (24 hour expiry)
-        const expiryTime = Date.now() + (24 * 60 * 60 * 1000);
-        localStorage.setItem('admin_authenticated', 'true');
-        localStorage.setItem('admin_auth_expiry', expiryTime.toString());
-        localStorage.setItem('admin_passkey', normalizedInput);
-        
-        console.log('✅ Admin login successful');
+      // Call login function from context
+      const result = await loginAdmin(passkey.trim());
+      
+      if (result.success) {
+        console.log('✅ Admin login successful - redirecting to dashboard');
         navigate('/admin/dashboard');
       } else {
-        setError('Invalid admin passkey. Please try again.');
+        console.log('❌ Admin login failed:', result.error);
+        setError(result.error || 'Invalid admin passkey. Please try again.');
         setPasskey("");
       }
-
+    } catch (err) {
+      console.error('❌ Admin login exception:', err);
+      setError('An error occurred during login. Please try again.');
+      setPasskey("");
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   return (

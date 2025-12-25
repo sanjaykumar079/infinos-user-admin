@@ -1,3 +1,6 @@
+// FILE: infinosfrontend/src/Devices.js
+// ENHANCED - Device codes displayed prominently everywhere
+
 import "./Devices.css";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +20,7 @@ function Devices() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterBagType, setFilterBagType] = useState("all");
   const [showClaimModal, setShowClaimModal] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(null);
 
   useEffect(() => {
     async function init() {
@@ -56,6 +60,13 @@ function Devices() {
     }
   };
 
+  const copyDeviceCode = (code, event) => {
+    event.stopPropagation();
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
   const getBagTypeDisplay = (bagType) => {
     return bagType === 'dual-zone' ? 'Hot & Cold Zones' : 'Heating Only';
   };
@@ -80,7 +91,8 @@ function Devices() {
   };
 
   const filteredDevices = devices.filter((device) => {
-    const matchesSearch = device.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         device.deviceCode?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
       filterStatus === "all" ||
       (filterStatus === "online" && device.status) ||
@@ -139,7 +151,7 @@ function Devices() {
             </svg>
             <input
               type="text"
-              placeholder="Search bags..."
+              placeholder="Search by name or device code..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
@@ -238,15 +250,47 @@ function Devices() {
                 </div>
 
                 <h3 className="device-card-name">{device.name}</h3>
-                <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '0 0 4px 0', fontFamily: 'monospace' }}>
-                  {device.deviceCode}
-                </p>
+                
+                {/* Device Code - Prominently Displayed */}
+                <div className="device-code-section">
+                  <div className="device-code-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    </svg>
+                    Device Code
+                  </div>
+                  <div className="device-code-display">
+                    <span className="device-code-text">{device.deviceCode || 'N/A'}</span>
+                    <button 
+                      className="copy-code-btn"
+                      onClick={(e) => copyDeviceCode(device.deviceCode, e)}
+                      title="Copy device code"
+                    >
+                      {copiedCode === device.deviceCode ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
                 <p style={{ 
                   fontSize: '13px', 
                   color: device.bagType === 'dual-zone' ? '#7C3AED' : '#EF4444', 
                   fontWeight: '600',
-                  margin: '0 0 16px 0'
+                  margin: '0 0 16px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
                 }}>
+                  {getBagTypeIcon(device.bagType)}
                   {getBagTypeDisplay(device.bagType)}
                 </p>
 
