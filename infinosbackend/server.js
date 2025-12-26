@@ -1,4 +1,5 @@
 // FILE: infinosbackend/server.js (REPLACE ENTIRE FILE)
+// FIXED - Auth routes now properly mounted
 
 require('dotenv').config();
 const express = require('express');
@@ -12,6 +13,7 @@ const PORT = process.env.PORT || 4000;
 // Routes
 const testAPIRouter = require('./routes/testAPI');
 const DeviceRouter = require('./routes/Device');
+const authRouter = require('./routes/auth');
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -31,6 +33,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/testAPI', testAPIRouter);
 app.use('/device', DeviceRouter);
+app.use('/auth', authRouter); // ✅ FIXED - Auth routes now mounted
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -45,6 +48,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, async () => {
   console.log(`🚀 Server is running on Port: ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`✅ Auth routes mounted at /auth`);
   
   // Initialize device simulator for all online devices
   console.log('\n🔄 Initializing device simulator...');

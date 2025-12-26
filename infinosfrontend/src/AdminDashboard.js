@@ -1,5 +1,5 @@
 // FILE: infinosfrontend/src/AdminDashboard.js
-// UPDATED - Categorize devices by user with detailed user info
+// FULLY RESPONSIVE with Mobile Support
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -46,6 +46,8 @@ function AdminDashboard() {
         throw new Error('Admin authentication required');
       }
       
+      console.log('🔑 Admin passkey found:', adminPasskey ? 'YES' : 'NO');
+      
       // Fetch admin statistics
       const statsRes = await deviceAPI.getAdminStats();
       console.log('✅ Stats loaded:', statsRes.data);
@@ -58,36 +60,61 @@ function AdminDashboard() {
       setDevices(allDevices);
 
       // Fetch all users with admin passkey
+      console.log('👥 Fetching users from /auth/users endpoint...');
       try {
         const usersRes = await axios.get('http://localhost:4000/auth/users', {
           headers: {
             'x-admin-passkey': adminPasskey
           }
         });
-        console.log('✅ Users loaded:', usersRes.data?.users?.length || 0);
+        
+        console.log('📦 Users API Response:', usersRes.data);
         
         const allUsers = usersRes.data?.users || [];
+        console.log('✅ Parsed users count:', allUsers.length);
+        
+        if (allUsers.length > 0) {
+          console.log('👤 Sample user structure:', JSON.stringify(allUsers[0], null, 2));
+        }
+        
         setUsers(allUsers);
 
         // Group devices by user
         const devicesByUser = {};
         
-        console.log('🔍 Debugging device grouping:');
-        console.log('Total devices:', allDevices.length);
-        console.log('Total users:', allUsers.length);
+        console.log('🔍 Starting device grouping process...');
         
-        allDevices.forEach(device => {
-          console.log('Device:', device.name, 'owner_id:', device.owner_id, 'is_claimed:', device.is_claimed);
+        const claimedDevices = allDevices.filter(d => d.is_claimed && d.owner_id);
+        console.log('✅ Claimed devices:', claimedDevices.length);
+        
+        claimedDevices.forEach(device => {
+          const user = allUsers.find(u => u.id === device.owner_id);
           
-          if (device.owner_id && device.is_claimed) {
+          console.log(`🔗 Processing device: "${device.name}" (owner: ${device.owner_id})`);
+          
+          if (user) {
             if (!devicesByUser[device.owner_id]) {
-              const user = allUsers.find(u => u.id === device.owner_id);
-              console.log('Found user for device:', user);
               devicesByUser[device.owner_id] = {
-                user: user || { 
-                  id: device.owner_id, 
+                user: {
+                  id: user.id,
+                  email: user.email,
+                  name: user.name || user.user_metadata?.name || user.email.split('@')[0],
+                  emailVerified: !!user.emailVerified || !!user.email_confirmed_at,
+                  createdAt: user.createdAt || user.created_at
+                },
+                devices: []
+              };
+            }
+            devicesByUser[device.owner_id].devices.push(device);
+          } else {
+            console.warn(`⚠️ No user found for owner_id: ${device.owner_id}`);
+            if (!devicesByUser[device.owner_id]) {
+              devicesByUser[device.owner_id] = {
+                user: {
+                  id: device.owner_id,
                   email: 'Unknown User',
-                  name: 'Unknown User'
+                  name: 'Unknown User',
+                  emailVerified: false
                 },
                 devices: []
               };
@@ -96,11 +123,14 @@ function AdminDashboard() {
           }
         });
 
-        console.log('Final devicesByUser:', devicesByUser);
+        console.log('✅ Grouped users with devices:', Object.keys(devicesByUser).length);
         setUserDevicesMap(devicesByUser);
-        console.log('✅ Grouped devices by user:', Object.keys(devicesByUser).length);
+        
       } catch (err) {
         console.error('❌ Error fetching users:', err);
+        if (err.response?.status === 404) {
+          console.error('❌ /auth/users endpoint not found! Check server.js');
+        }
       }
       
       setLoading(false);
@@ -144,11 +174,8 @@ function AdminDashboard() {
         bag_type: newDevice.bag_type
       });
 
-      // Reset form and close modal
       setNewDevice({ name: "", device_code: "", bag_type: "dual-zone" });
       setShowAddDeviceModal(false);
-      
-      // Refresh data
       fetchAdminData();
     } catch (err) {
       setAddDeviceError(err.response?.data?.message || err.message || 'Failed to add device');
@@ -181,7 +208,7 @@ function AdminDashboard() {
           </div>
           <h2>Failed to Load Dashboard</h2>
           <p>{error}</p>
-          <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <button className="admin-action-btn" onClick={handleRetry}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
@@ -463,12 +490,22 @@ function AdminDashboard() {
 
         {/* Users & Devices Tab */}
         {activeTab === "users" && (
-          <div className="admin-table-container" style={{ background: 'transparent', boxShadow: 'none', padding: 0 }}>
+          <div style={{ background: 'transparent' }}>
             {Object.keys(userDevicesMap).length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', background: 'white', borderRadius: '12px' }}>
-                <p style={{ color: '#6B7280', fontSize: '14px' }}>
+                <p style={{ color: '#6B7280', fontSize: '14px', marginBottom: '12px' }}>
                   No users with claimed devices yet.
                 </p>
+                <button 
+                  className="admin-action-btn-secondary"
+                  onClick={handleRetry}
+                  style={{ marginTop: '12px' }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                  </svg>
+                  Refresh to Check Again
+                </button>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -476,7 +513,7 @@ function AdminDashboard() {
                   <div key={userId} style={{
                     background: 'white',
                     borderRadius: '16px',
-                    padding: '24px',
+                    padding: '20px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
                     border: '1px solid #E5E7EB'
                   }}>
@@ -490,109 +527,123 @@ function AdminDashboard() {
                       borderBottom: '2px solid #F3F4F6'
                     }}>
                       <div style={{
-                        width: '56px',
-                        height: '56px',
+                        width: '48px',
+                        height: '48px',
                         borderRadius: '50%',
                         background: 'linear-gradient(135deg, #FF6B35, #E55A2B)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: 'white',
-                        fontSize: '24px',
+                        fontSize: '20px',
                         fontWeight: '700',
-                        textTransform: 'uppercase'
+                        textTransform: 'uppercase',
+                        flexShrink: 0
                       }}>
                         {userData.user.name?.[0] || userData.user.email?.[0] || 'U'}
                       </div>
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <h3 style={{ 
                           margin: 0, 
-                          fontSize: '18px', 
+                          fontSize: '16px', 
                           fontWeight: '700',
                           color: '#111827',
-                          marginBottom: '4px'
+                          marginBottom: '4px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
                         }}>
                           {userData.user.name || 'Unknown User'}
                         </h3>
                         <p style={{ 
                           margin: 0, 
-                          fontSize: '14px', 
+                          fontSize: '13px', 
                           color: '#6B7280',
-                          fontFamily: 'monospace'
+                          fontFamily: 'monospace',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
                         }}>
                           {userData.user.email}
                         </p>
                       </div>
                       <div style={{
-                        padding: '8px 16px',
+                        padding: '6px 12px',
                         background: '#F3F4F6',
                         borderRadius: '8px',
-                        fontSize: '14px',
+                        fontSize: '12px',
                         fontWeight: '600',
-                        color: '#374151'
+                        color: '#374151',
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap'
                       }}>
                         {userData.devices.length} {userData.devices.length === 1 ? 'Device' : 'Devices'}
                       </div>
                     </div>
 
-                    {/* User's Devices */}
-                    <table className="admin-table" style={{ marginBottom: 0 }}>
-                      <thead>
-                        <tr>
-                          <th>Device Name</th>
-                          <th>Device Code</th>
-                          <th>Type</th>
-                          <th>Status</th>
-                          <th>Battery</th>
-                          <th>Hot Zone</th>
-                          <th>Cold Zone</th>
-                          <th>Last Seen</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {userData.devices.map((device) => (
-                          <tr key={device.id}>
-                            <td><strong>{device.name}</strong></td>
-                            <td>
-                              <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
-                                {device.device_code}
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`admin-type-badge ${
-                                device.bag_type === 'dual-zone' ? 'admin-type-dual' : 
-                                device.bag_type === 'cooling-only' ? 'admin-type-cooler' : 
-                                'admin-type-heating'
-                              }`} style={{
-                                background: device.bag_type === 'cooling-only' ? '#DBEAFE' : undefined,
-                                color: device.bag_type === 'cooling-only' ? '#1E40AF' : undefined
-                              }}>
-                                {getBagTypeDisplay(device.bag_type)}
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`admin-badge ${device.status ? 'admin-badge-success' : 'admin-badge-error'}`}>
-                                {device.status ? 'Online' : 'Offline'}
-                              </span>
-                            </td>
-                            <td>{device.battery_charge_level?.toFixed(0) || 0}%</td>
-                            <td>
-                              {device.bag_type !== 'cooling-only' 
-                                ? `${device.hot_zone_current_temp?.toFixed(1) || 'N/A'}°C`
-                                : '-'}
-                            </td>
-                            <td>
-                              {device.bag_type !== 'heating-only' 
-                                ? `${device.cold_zone_current_temp?.toFixed(1) || 'N/A'}°C`
-                                : '-'}
-                            </td>
-                            <td>
-                              <small>{device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}</small>
-                            </td>
+                    {/* User's Devices - Responsive Table */}
+{/* User's Devices - Scrollable Table */}
+                    <div style={{ 
+                      overflowX: 'auto',
+                      WebkitOverflowScrolling: 'touch',
+                      borderRadius: '8px',
+                      border: '1px solid #E5E7EB'
+                    }}>
+                      <table className="admin-table" style={{ marginBottom: 0 }}>
+                        <thead>
+                          <tr>
+                            <th>Device Name</th>
+                            <th>Code</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Battery</th>
+                            <th>Hot Zone</th>
+                            <th>Cold Zone</th>
+                            <th>Last Seen</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {userData.devices.map((device) => (
+                            <tr key={device.id}>
+                              <td><strong>{device.name}</strong></td>
+                              <td>
+                                <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                                  {device.device_code}
+                                </span>
+                              </td>
+                              <td>
+                                <span className={`admin-type-badge ${
+                                  device.bag_type === 'dual-zone' ? 'admin-type-dual' : 
+                                  device.bag_type === 'cooling-only' ? 'admin-type-cooler' : 
+                                  'admin-type-heating'
+                                }`}>
+                                  {getBagTypeDisplay(device.bag_type)}
+                                </span>
+                              </td>
+                              <td>
+                                <span className={`admin-badge ${device.status ? 'admin-badge-success' : 'admin-badge-error'}`}>
+                                  {device.status ? 'Online' : 'Offline'}
+                                </span>
+                              </td>
+                              <td>{device.battery_charge_level?.toFixed(0) || 0}%</td>
+                              <td>
+                                {device.bag_type !== 'cooling-only' 
+                                  ? `${device.hot_zone_current_temp?.toFixed(1) || 'N/A'}°C`
+                                  : '-'}
+                              </td>
+                              <td>
+                                {device.bag_type !== 'heating-only' 
+                                  ? `${device.cold_zone_current_temp?.toFixed(1) || 'N/A'}°C`
+                                  : '-'}
+                              </td>
+                              <td>
+                                <small>{device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}</small>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -603,79 +654,78 @@ function AdminDashboard() {
         {/* All Devices Tab */}
         {activeTab === "devices" && (
           <div className="admin-table-container">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Device Name</th>
-                  <th>Device Code</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Claimed</th>
-                  <th className="hide-mobile">Battery</th>
-                  <th className="hide-mobile">Hot Zone</th>
-                  <th className="hide-mobile">Cold Zone</th>
-                  <th className="hide-mobile">Last Seen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {devices.length === 0 ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="admin-table">
+                <thead>
                   <tr>
-                    <td colSpan="9" style={{ textAlign: 'center', padding: '40px' }}>
-                      <p style={{ color: '#6B7280', fontSize: '14px' }}>
-                        No devices found. Click "Add Device" to create your first device.
-                      </p>
-                    </td>
+                    <th>Device Name</th>
+                    <th>Code</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Claimed</th>
+                    <th className="hide-mobile">Battery</th>
+                    <th className="hide-mobile">Hot Zone</th>
+                    <th className="hide-mobile">Cold Zone</th>
+                    <th className="hide-mobile">Last Seen</th>
                   </tr>
-                ) : (
-                  devices.map((device) => (
-                    <tr key={device.id}>
-                      <td><strong>{device.name}</strong></td>
-                      <td>
-                        <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
-                          {device.device_code}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`admin-type-badge ${
-                          device.bag_type === 'dual-zone' ? 'admin-type-dual' : 
-                          device.bag_type === 'cooling-only' ? 'admin-type-cooler' :
-                          'admin-type-heating'
-                        }`} style={{
-                          background: device.bag_type === 'cooling-only' ? '#DBEAFE' : undefined,
-                          color: device.bag_type === 'cooling-only' ? '#1E40AF' : undefined
-                        }}>
-                          {getBagTypeDisplay(device.bag_type)}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`admin-badge ${device.status ? 'admin-badge-success' : 'admin-badge-error'}`}>
-                          {device.status ? 'Online' : 'Offline'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`admin-badge ${device.is_claimed ? 'admin-badge-success' : 'admin-badge-warning'}`}>
-                          {device.is_claimed ? 'Yes' : 'No'}
-                        </span>
-                      </td>
-                      <td className="hide-mobile">{device.battery_charge_level?.toFixed(0) || 0}%</td>
-                      <td className="hide-mobile">
-                        {device.bag_type !== 'cooling-only' 
-                          ? `${device.hot_zone_current_temp?.toFixed(1) || 'N/A'}°C`
-                          : '-'}
-                      </td>
-                      <td className="hide-mobile">
-                        {device.bag_type !== 'heating-only' 
-                          ? `${device.cold_zone_current_temp?.toFixed(1) || 'N/A'}°C`
-                          : '-'}
-                      </td>
-                      <td className="hide-mobile">
-                        <small>{device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}</small>
+                </thead>
+                <tbody>
+                  {devices.length === 0 ? (
+                    <tr>
+                      <td colSpan="9" style={{ textAlign: 'center', padding: '40px' }}>
+                        <p style={{ color: '#6B7280', fontSize: '14px' }}>
+                          No devices found. Click "Add Device" to create your first device.
+                        </p>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    devices.map((device) => (
+                      <tr key={device.id}>
+                        <td><strong>{device.name}</strong></td>
+                        <td>
+                          <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                            {device.device_code}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`admin-type-badge ${
+                            device.bag_type === 'dual-zone' ? 'admin-type-dual' : 
+                            device.bag_type === 'cooling-only' ? 'admin-type-cooler' :
+                            'admin-type-heating'
+                          }`}>
+                            {getBagTypeDisplay(device.bag_type)}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`admin-badge ${device.status ? 'admin-badge-success' : 'admin-badge-error'}`}>
+                            {device.status ? 'Online' : 'Offline'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`admin-badge ${device.is_claimed ? 'admin-badge-success' : 'admin-badge-warning'}`}>
+                            {device.is_claimed ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td className="hide-mobile">{device.battery_charge_level?.toFixed(0) || 0}%</td>
+                        <td className="hide-mobile">
+                          {device.bag_type !== 'cooling-only' 
+                            ? `${device.hot_zone_current_temp?.toFixed(1) || 'N/A'}°C`
+                            : '-'}
+                        </td>
+                        <td className="hide-mobile">
+                          {device.bag_type !== 'heating-only' 
+                            ? `${device.cold_zone_current_temp?.toFixed(1) || 'N/A'}°C`
+                            : '-'}
+                        </td>
+                        <td className="hide-mobile">
+                          <small>{device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}</small>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -685,9 +735,9 @@ function AdminDashboard() {
         <div className="admin-modal-overlay" onClick={() => setShowAddDeviceModal(false)}>
           <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
-              <h2>Add New Device</h2>
+              <h2 className="admin-modal-title">Add New Device</h2>
               <button 
-                className="admin-modal-close"
+                className="admin-modal-close" 
                 onClick={() => setShowAddDeviceModal(false)}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -697,60 +747,54 @@ function AdminDashboard() {
               </button>
             </div>
 
+            {addDeviceError && (
+              <div className="admin-form-error">
+                {addDeviceError}
+              </div>
+            )}
+
             <form onSubmit={handleAddDevice}>
               <div className="admin-form-group">
-                <label htmlFor="deviceName">Device Name</label>
+                <label className="admin-form-label">Device Name</label>
                 <input
-                  id="deviceName"
                   type="text"
-                  placeholder="e.g., Delivery Bag #1"
+                  className="admin-form-input"
                   value={newDevice.name}
                   onChange={(e) => setNewDevice({ ...newDevice, name: e.target.value })}
+                  placeholder="e.g., My INFINOS Bag"
                   required
                 />
               </div>
 
               <div className="admin-form-group">
-                <label htmlFor="deviceCode">Device Code</label>
+                <label className="admin-form-label">Device Code</label>
                 <input
-                  id="deviceCode"
                   type="text"
-                  placeholder="e.g., INF-001"
+                  className="admin-form-input"
                   value={newDevice.device_code}
                   onChange={(e) => setNewDevice({ ...newDevice, device_code: e.target.value })}
+                  placeholder="e.g., INF-1234"
                   required
                 />
               </div>
 
               <div className="admin-form-group">
-                <label htmlFor="bagType">Bag Type</label>
+                <label className="admin-form-label">Bag Type</label>
                 <select
-                  id="bagType"
+                  className="admin-form-select"
                   value={newDevice.bag_type}
                   onChange={(e) => setNewDevice({ ...newDevice, bag_type: e.target.value })}
-                  required
                 >
                   <option value="dual-zone">Dual-Zone (Hot & Cold)</option>
-                  <option value="heating-only">Heating Only</option>
-                  <option value="cooling-only">Cooling Only</option>
+                  <option value="heating-only">Heating-Only</option>
+                  <option value="cooling-only">Cooling-Only</option>
                 </select>
               </div>
 
-              {addDeviceError && (
-                <div className="admin-form-error">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>
-                  {addDeviceError}
-                </div>
-              )}
-
-              <div className="admin-modal-actions">
+              <div className="admin-form-actions">
                 <button
                   type="button"
-                  className="admin-action-btn-secondary"
+                  className="admin-form-cancel"
                   onClick={() => setShowAddDeviceModal(false)}
                   disabled={addDeviceLoading}
                 >
@@ -758,23 +802,10 @@ function AdminDashboard() {
                 </button>
                 <button
                   type="submit"
-                  className="admin-action-btn"
+                  className="admin-form-submit"
                   disabled={addDeviceLoading}
                 >
-                  {addDeviceLoading ? (
-                    <>
-                      <div className="loading-spinner-small"></div>
-                      Adding...
-                    </>
-                  ) : (
-                    <>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="12" y1="5" x2="12" y2="19"/>
-                        <line x1="5" y1="12" x2="19" y2="12"/>
-                      </svg>
-                      Add Device
-                    </>
-                  )}
+                  {addDeviceLoading ? 'Adding...' : 'Add Device'}
                 </button>
               </div>
             </form>
