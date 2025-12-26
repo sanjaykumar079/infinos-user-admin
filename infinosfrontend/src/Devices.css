@@ -347,3 +347,59 @@
     grid-template-columns: 1fr;
   }
 }
+/* Add to infinosfrontend/src/Devices.css - Device Code Section Styles */
+
+/* Device Code Section - Simplified without copy button */
+.device-code-section {
+  padding: 12px;
+  background: #F9FAFB;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #E5E7EB;
+}
+
+.device-code-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.device-code-label svg {
+  stroke-width: 2;
+  color: #9CA3AF;
+}
+
+.device-code-display-simple {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+}
+
+.device-code-text {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  letter-spacing: 1px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .device-code-section {
+    padding: 10px;
+  }
+  
+  .device-code-text {
+    font-size: 13px;
+  }
+}

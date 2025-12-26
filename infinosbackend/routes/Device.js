@@ -423,9 +423,21 @@ router.post('/update_device', optionalAuth, async (req, res) => {
 });
 
 // Update hot zone (keep existing - simulator will handle readings)
+// Update hot zone (keep existing - simulator will handle readings)
 router.post('/update_hot_zone', optionalAuth, async (req, res) => {
   try {
     const { device_id, temp, humidity } = req.body;
+
+    // ✅ ADD THIS CHECK - cooling-only bags don't have hot zone
+    const { data: device } = await supabase
+      .from('devices')
+      .select('bag_type')
+      .eq('id', device_id)
+      .single();
+
+    if (device?.bag_type === 'cooling-only') {
+      return res.status(400).json({ message: "This bag doesn't have a hot zone" });
+    }
 
     const { error: updateError } = await supabase
       .from('devices')
@@ -458,6 +470,8 @@ router.post('/update_hot_zone', optionalAuth, async (req, res) => {
 });
 
 // Update cold zone (keep existing)
+// Update cold zone (keep existing)
+// Update cold zone (keep existing)
 router.post('/update_cold_zone', optionalAuth, async (req, res) => {
   try {
     const { device_id, temp, humidity } = req.body;
@@ -468,7 +482,8 @@ router.post('/update_cold_zone', optionalAuth, async (req, res) => {
       .eq('id', device_id)
       .single();
 
-    if (device?.bag_type !== 'dual-zone') {
+    // ✅ CHANGE THIS - cold zone exists for dual-zone AND cooling-only
+    if (device?.bag_type === 'heating-only') {
       return res.status(400).json({ message: "This bag doesn't have a cold zone" });
     }
 
@@ -539,15 +554,27 @@ router.post('/update_battery', optionalAuth, async (req, res) => {
 });
 
 // Update hot zone settings
+// Update hot zone settings
 router.post('/update_hot_zone_settings', verifyToken, async (req, res) => {
   try {
     const { device_id, target_temp, heater_on, fan_on } = req.body;
 
     const { data: device } = await supabase
       .from('devices')
-      .select('owner_id')
+      .select('owner_id, bag_type')  // ✅ ADD bag_type
       .eq('id', device_id)
       .single();
+
+    if (device.owner_id !== req.user.id) {
+      return res.status(403).json({ 
+        message: 'Unauthorized to update this device' 
+      });
+    }
+
+    // ✅ ADD THIS CHECK
+    if (device?.bag_type === 'cooling-only') {
+      return res.status(400).json({ message: "This bag doesn't have a hot zone" });
+    }
 
     if (device.owner_id !== req.user.id) {
       return res.status(403).json({ 
@@ -576,6 +603,7 @@ router.post('/update_hot_zone_settings', verifyToken, async (req, res) => {
 });
 
 // Update cold zone settings
+// Update cold zone settings
 router.post('/update_cold_zone_settings', verifyToken, async (req, res) => {
   try {
     const { device_id, target_temp, cooler_on, fan_on } = req.body;
@@ -592,7 +620,8 @@ router.post('/update_cold_zone_settings', verifyToken, async (req, res) => {
       });
     }
 
-    if (device?.bag_type !== 'dual-zone') {
+    // ✅ CHANGE THIS - cold zone exists for dual-zone AND cooling-only
+    if (device?.bag_type === 'heating-only') {
       return res.status(400).json({ message: "This bag doesn't have a cold zone" });
     }
 
@@ -772,10 +801,10 @@ router.post('/seed-devices', async (req, res) => {
     }
 
     const { bagType, quantity } = req.body;
-
-    if (!bagType || !['dual-zone', 'heating-only'].includes(bagType)) {
+// ✅ ADD 'cooling-only' to valid types
+    if (!bagType || !['dual-zone', 'heating-only', 'cooling-only'].includes(bagType)) {
       return res.status(400).json({ 
-        message: 'Invalid bag type. Must be "dual-zone" or "heating-only"' 
+        message: 'Invalid bag type. Must be "dual-zone", "heating-only", or "cooling-only"' 
       });
     }
 
@@ -787,8 +816,13 @@ router.post('/seed-devices', async (req, res) => {
 
     const devicesToCreate = [];
     for (let i = 0; i < quantity; i++) {
-      devicesToCreate.push({
-        name: `${bagType === 'dual-zone' ? 'Dual-Zone' : 'Heating-Only'} Bag ${Date.now()}-${i}`,
+      // ✅ CHANGE THIS LINE to include cooling-only
+      const bagName = bagType === 'dual-zone' ? 'Dual-Zone' : 
+                      bagType === 'cooling-only' ? 'Cooling-Only' : 
+                      'Heating-Only';
+      
+      const baseDevice = {
+        name: `${bagName} Bag ${Date.now()}-${i}`,
         device_code: generateDeviceCode(),
         device_secret: generateDeviceSecret(),
         bag_type: bagType,
@@ -796,16 +830,6 @@ router.post('/seed-devices', async (req, res) => {
         manufacturing_date: new Date().toISOString(),
         status: false,
         is_claimed: false,
-        hot_zone_current_temp: 25,
-        hot_zone_target_temp: 60,
-        hot_zone_current_humidity: 50,
-        hot_zone_heater_on: false,
-        hot_zone_fan_on: false,
-        cold_zone_current_temp: bagType === 'dual-zone' ? 25 : null,
-        cold_zone_target_temp: bagType === 'dual-zone' ? 5 : null,
-        cold_zone_current_humidity: bagType === 'dual-zone' ? 60 : null,
-        cold_zone_cooler_on: bagType === 'dual-zone' ? false : null,
-        cold_zone_fan_on: bagType === 'dual-zone' ? false : null,
         battery_charge_level: 100,
         battery_voltage: 12.6,
         battery_is_charging: false,
@@ -813,7 +837,55 @@ router.post('/seed-devices', async (req, res) => {
         safety_max_temp: 100,
         safety_low_battery: 20,
         created_at: new Date().toISOString()
-      });
+      };
+
+      // ✅ ADD THIS - Configure zones based on bag type
+      if (bagType === 'cooling-only') {
+        // Cooling-only: No hot zone, only cold zone
+        devicesToCreate.push({
+          ...baseDevice,
+          hot_zone_current_temp: null,
+          hot_zone_target_temp: null,
+          hot_zone_current_humidity: null,
+          hot_zone_heater_on: null,
+          hot_zone_fan_on: null,
+          cold_zone_current_temp: 25,
+          cold_zone_target_temp: 5,
+          cold_zone_current_humidity: 60,
+          cold_zone_cooler_on: false,
+          cold_zone_fan_on: false,
+        });
+      } else if (bagType === 'heating-only') {
+        // Heating-only: Only hot zone, no cold zone
+        devicesToCreate.push({
+          ...baseDevice,
+          hot_zone_current_temp: 25,
+          hot_zone_target_temp: 60,
+          hot_zone_current_humidity: 50,
+          hot_zone_heater_on: false,
+          hot_zone_fan_on: false,
+          cold_zone_current_temp: null,
+          cold_zone_target_temp: null,
+          cold_zone_current_humidity: null,
+          cold_zone_cooler_on: null,
+          cold_zone_fan_on: null,
+        });
+      } else {
+        // Dual-zone: Both hot and cold zones
+        devicesToCreate.push({
+          ...baseDevice,
+          hot_zone_current_temp: 25,
+          hot_zone_target_temp: 60,
+          hot_zone_current_humidity: 50,
+          hot_zone_heater_on: false,
+          hot_zone_fan_on: false,
+          cold_zone_current_temp: 25,
+          cold_zone_target_temp: 5,
+          cold_zone_current_humidity: 60,
+          cold_zone_cooler_on: false,
+          cold_zone_fan_on: false,
+        });
+      }
     }
 
     const { data: createdDevices, error } = await supabase

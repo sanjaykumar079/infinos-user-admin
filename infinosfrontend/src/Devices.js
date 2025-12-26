@@ -1,5 +1,5 @@
 // FILE: infinosfrontend/src/Devices.js
-// ENHANCED - Device codes displayed prominently everywhere
+// UPDATED - Added cooling-only support and removed copy button
 
 import "./Devices.css";
 import { useEffect, useState } from "react";
@@ -20,7 +20,6 @@ function Devices() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterBagType, setFilterBagType] = useState("all");
   const [showClaimModal, setShowClaimModal] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(null);
 
   useEffect(() => {
     async function init() {
@@ -63,7 +62,6 @@ function Devices() {
   const handleMonitor = (device) => async (event) => {
     event.stopPropagation();
     try {
-      // Ensure the device is online so the simulator starts streaming readings
       if (!device.status) {
         await deviceAPI.updateDevice(device._id, true);
         await fetchDevices();
@@ -76,15 +74,11 @@ function Devices() {
     }
   };
 
-  const copyDeviceCode = (code, event) => {
-    event.stopPropagation();
-    navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
-  };
-
   const getBagTypeDisplay = (bagType) => {
-    return bagType === 'dual-zone' ? 'Hot & Cold Zones' : 'Heating Only';
+    if (bagType === 'dual-zone') return 'Hot & Cold Zones';
+    if (bagType === 'heating-only') return 'Heating Only';
+    if (bagType === 'cooling-only') return 'Cooling Only';
+    return bagType;
   };
 
   const getBagTypeIcon = (bagType) => {
@@ -96,11 +90,18 @@ function Devices() {
           <circle cx="17" cy="17" r="3" fill="#3B82F6"/>
         </svg>
       );
-    } else {
+    } else if (bagType === 'heating-only') {
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M12 2v20" strokeWidth="2"/>
           <circle cx="12" cy="12" r="5" fill="#EF4444"/>
+        </svg>
+      );
+    } else if (bagType === 'cooling-only') {
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M12 2v20M2 12h20" strokeWidth="2"/>
+          <circle cx="12" cy="12" r="5" fill="#3B82F6"/>
         </svg>
       );
     }
@@ -121,6 +122,7 @@ function Devices() {
 
   const dualZoneCount = devices.filter(d => d.bagType === 'dual-zone').length;
   const heatingOnlyCount = devices.filter(d => d.bagType === 'heating-only').length;
+  const coolingOnlyCount = devices.filter(d => d.bagType === 'cooling-only').length;
 
   if (loading) {
     return (
@@ -173,7 +175,7 @@ function Devices() {
               className="search-input"
             />
           </div>
-
+            
           <div className="filter-buttons">
             <button
               className={`filter-btn ${filterStatus === "all" ? "filter-btn-active" : ""}`}
@@ -213,6 +215,12 @@ function Devices() {
               onClick={() => setFilterBagType("heating-only")}
             >
               Heating ({heatingOnlyCount})
+            </button>
+            <button
+              className={`filter-btn ${filterBagType === "cooling-only" ? "filter-btn-active" : ""}`}
+              onClick={() => setFilterBagType("cooling-only")}
+            >
+              Cooling ({coolingOnlyCount})
             </button>
           </div>
         </div>
@@ -267,7 +275,7 @@ function Devices() {
 
                 <h3 className="device-card-name">{device.name}</h3>
                 
-                {/* Device Code - Prominently Displayed */}
+                {/* Device Code - Displayed without copy button */}
                 <div className="device-code-section">
                   <div className="device-code-label">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -276,30 +284,14 @@ function Devices() {
                     </svg>
                     Device Code
                   </div>
-                  <div className="device-code-display">
+                  <div className="device-code-display-simple">
                     <span className="device-code-text">{device.deviceCode || 'N/A'}</span>
-                    <button 
-                      className="copy-code-btn"
-                      onClick={(e) => copyDeviceCode(device.deviceCode, e)}
-                      title="Copy device code"
-                    >
-                      {copiedCode === device.deviceCode ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                      ) : (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                        </svg>
-                      )}
-                    </button>
                   </div>
                 </div>
 
                 <p style={{ 
                   fontSize: '13px', 
-                  color: device.bagType === 'dual-zone' ? '#7C3AED' : '#EF4444', 
+                  color: device.bagType === 'dual-zone' ? '#7C3AED' : device.bagType === 'cooling-only' ? '#3B82F6' : '#EF4444', 
                   fontWeight: '600',
                   margin: '0 0 16px 0',
                   display: 'flex',
@@ -311,16 +303,18 @@ function Devices() {
                 </p>
 
                 <div className="device-card-components">
-                  {/* Hot Zone - ALL bags have this */}
-                  <div className="component-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444">
-                      <path d="M12 2v20" strokeWidth="2"/>
-                    </svg>
-                    <span>Hot Zone: {device.hotZone?.currentTemp?.toFixed(1) || 'N/A'}°C</span>
-                  </div>
+                  {/* Hot Zone - heating-only and dual-zone bags */}
+                  {device.bagType !== 'cooling-only' && (
+                    <div className="component-item">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444">
+                        <path d="M12 2v20" strokeWidth="2"/>
+                      </svg>
+                      <span>Hot Zone: {device.hotZone?.currentTemp?.toFixed(1) || 'N/A'}°C</span>
+                    </div>
+                  )}
 
-                  {/* Cold Zone - Only dual-zone bags */}
-                  {device.bagType === 'dual-zone' && (
+                  {/* Cold Zone - cooling-only and dual-zone bags */}
+                  {device.bagType !== 'heating-only' && (
                     <div className="component-item">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6">
                         <path d="M12 2v20M2 12h20" strokeWidth="2"/>
