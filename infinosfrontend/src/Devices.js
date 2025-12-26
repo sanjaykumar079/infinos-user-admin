@@ -1,5 +1,5 @@
 // FILE: infinosfrontend/src/Devices.js
-// UPDATED - Added cooling-only support and removed copy button
+// FIXED - Show "Cold" for cooling-only bags and categorize by user
 
 import "./Devices.css";
 import { useEffect, useState } from "react";
@@ -275,7 +275,7 @@ function Devices() {
 
                 <h3 className="device-card-name">{device.name}</h3>
                 
-                {/* Device Code - Displayed without copy button */}
+                {/* Device Code */}
                 <div className="device-code-section">
                   <div className="device-code-label">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
