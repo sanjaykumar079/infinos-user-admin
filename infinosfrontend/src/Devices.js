@@ -60,6 +60,22 @@ function Devices() {
     }
   };
 
+  const handleMonitor = (device) => async (event) => {
+    event.stopPropagation();
+    try {
+      // Ensure the device is online so the simulator starts streaming readings
+      if (!device.status) {
+        await deviceAPI.updateDevice(device._id, true);
+        await fetchDevices();
+      }
+
+      localStorage.setItem("deviceid", device._id);
+      navigate("/bag-control");
+    } catch (err) {
+      console.error("Error starting monitor:", err);
+    }
+  };
+
   const copyDeviceCode = (code, event) => {
     event.stopPropagation();
     navigator.clipboard.writeText(code);
@@ -336,14 +352,7 @@ function Devices() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={!device.status}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (device.status) {
-                        localStorage.setItem("deviceid", device._id);
-                        navigate("/bag-control");
-                      }
-                    }}
+                    onClick={handleMonitor(device)}
                   >
                     Monitor
                   </Button>

@@ -1,11 +1,26 @@
 // FILE: infinosbackend/routes/Device.js
-// Enhanced routes with admin seed devices functionality
+// UPDATED - Add simulator integration when device status changes
 
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const { verifyToken, verifyAdmin, optionalAuth } = require('../middleware/authMiddleware');
 const crypto = require('crypto');
+const deviceSimulator = require('../services/deviceSimulator'); // ADD THIS
+
+// ... (keep all existing helper functions and routes)
+
+// Helper function to generate device code
+const generateDeviceCode = () => {
+  const part1 = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const part2 = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `INF-${part1}-${part2}`;
+};
+
+// Helper function to generate device secret
+const generateDeviceSecret = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
 
 // Normalize Supabase rows into the shape expected by the frontend
 const formatDeviceListItem = (device) => ({
@@ -42,20 +57,8 @@ const formatDeviceListItem = (device) => ({
   },
 });
 
-// Helper function to generate device code
-const generateDeviceCode = () => {
-  const part1 = Math.random().toString(36).substring(2, 6).toUpperCase();
-  const part2 = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `INF-${part1}-${part2}`;
-};
-
-// Helper function to generate device secret
-const generateDeviceSecret = () => {
-  return crypto.randomBytes(32).toString('hex');
-};
-
 // ============================================
-// PUBLIC ENDPOINTS (No authentication required)
+// PUBLIC ENDPOINTS
 // ============================================
 
 // Authenticate device (for simulator/hardware)
@@ -74,7 +77,6 @@ router.post('/auth', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Update last seen
     await supabase
       .from('devices')
       .update({ last_seen: new Date().toISOString() })
@@ -94,7 +96,7 @@ router.post('/auth', async (req, res) => {
   }
 });
 
-// Verify device code (for claiming) - No auth required
+// Verify device code (for claiming)
 router.get('/verify-code', async (req, res) => {
   try {
     const { deviceCode } = req.query;
@@ -139,19 +141,17 @@ router.get('/verify-code', async (req, res) => {
 // AUTHENTICATED USER ENDPOINTS
 // ============================================
 
-// Claim device - Requires authentication
+// Claim device
 router.post('/claim', verifyToken, async (req, res) => {
   try {
     const { deviceCode, ownerId, deviceName } = req.body;
 
-    // Verify that the authenticated user matches the ownerId
     if (req.user.id !== ownerId) {
       return res.status(403).json({ 
         message: 'Unauthorized to claim device for another user' 
       });
     }
 
-    // Check if device exists and is unclaimed
     const { data: device, error: fetchError } = await supabase
       .from('devices')
       .select('*')
@@ -170,7 +170,6 @@ router.post('/claim', verifyToken, async (req, res) => {
       });
     }
 
-    // Update device with owner
     const { data: updated, error: updateError } = await supabase
       .from('devices')
       .update({
@@ -204,12 +203,11 @@ router.post('/claim', verifyToken, async (req, res) => {
   }
 });
 
-// Get user's devices - Requires authentication
+// Get user's devices
 router.get('/my-devices', verifyToken, async (req, res) => {
   try {
     const { ownerId } = req.query;
 
-    // Verify that the authenticated user matches the ownerId
     if (req.user.id !== ownerId) {
       return res.status(403).json({ 
         message: 'Unauthorized to access other user devices' 
@@ -233,12 +231,11 @@ router.get('/my-devices', verifyToken, async (req, res) => {
   }
 });
 
-// Get device summary - Requires authentication
+// Get device summary
 router.get('/summary', verifyToken, async (req, res) => {
   try {
     const { ownerId } = req.query;
 
-    // Verify that the authenticated user matches the ownerId
     if (req.user.id !== ownerId) {
       return res.status(403).json({ 
         message: 'Unauthorized to access other user data' 
@@ -274,7 +271,7 @@ router.get('/summary', verifyToken, async (req, res) => {
   }
 });
 
-// Get specific device - Requires authentication
+// Get specific device
 router.get('/get_device', verifyToken, async (req, res) => {
   try {
     const { device_id } = req.query;
@@ -289,7 +286,6 @@ router.get('/get_device', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Device not found' });
     }
 
-    // Verify that the authenticated user owns this device
     if (device.owner_id !== req.user.id) {
       return res.status(403).json({ 
         message: 'Unauthorized to access this device' 
@@ -313,7 +309,6 @@ router.get('/get_device', verifyToken, async (req, res) => {
       .order('timestamp', { ascending: false })
       .limit(100);
 
-    // Get battery readings
     const { data: batteryReadings } = await supabase
       .from('battery_readings')
       .select('*')
@@ -321,7 +316,6 @@ router.get('/get_device', verifyToken, async (req, res) => {
       .order('timestamp', { ascending: false })
       .limit(100);
 
-    // Format response
     const formattedDevice = {
       ...device,
       _id: device.id,
@@ -378,7 +372,7 @@ router.get('/get_device', verifyToken, async (req, res) => {
   }
 });
 
-// Update device status - Requires authentication or device auth
+// ⭐ UPDATED - Update device status with simulator integration
 router.post('/update_device', optionalAuth, async (req, res) => {
   try {
     const { device_id, status } = req.body;
@@ -410,6 +404,17 @@ router.post('/update_device', optionalAuth, async (req, res) => {
 
     if (error) throw error;
 
+    // ⭐ START/STOP SIMULATOR BASED ON STATUS
+    if (status === true) {
+      // Device turned ON - start simulation
+      console.log(`🟢 Device ${device_id} turned ON - starting simulator`);
+      await deviceSimulator.startSimulation(device_id);
+    } else {
+      // Device turned OFF - stop simulation
+      console.log(`🔴 Device ${device_id} turned OFF - stopping simulator`);
+      deviceSimulator.stopSimulation(device_id);
+    }
+
     res.json(data);
   } catch (err) {
     console.error('Update device error:', err);
@@ -417,12 +422,11 @@ router.post('/update_device', optionalAuth, async (req, res) => {
   }
 });
 
-// Update hot zone - Requires authentication or device auth
+// Update hot zone (keep existing - simulator will handle readings)
 router.post('/update_hot_zone', optionalAuth, async (req, res) => {
   try {
     const { device_id, temp, humidity } = req.body;
 
-    // Update device current readings
     const { error: updateError } = await supabase
       .from('devices')
       .update({
@@ -434,7 +438,6 @@ router.post('/update_hot_zone', optionalAuth, async (req, res) => {
 
     if (updateError) throw updateError;
 
-    // Insert reading into history
     const { error: insertError } = await supabase
       .from('temperature_readings')
       .insert({
@@ -454,12 +457,11 @@ router.post('/update_hot_zone', optionalAuth, async (req, res) => {
   }
 });
 
-// Update cold zone - Requires authentication or device auth
+// Update cold zone (keep existing)
 router.post('/update_cold_zone', optionalAuth, async (req, res) => {
   try {
     const { device_id, temp, humidity } = req.body;
 
-    // Check if device is dual-zone
     const { data: device } = await supabase
       .from('devices')
       .select('bag_type')
@@ -470,7 +472,6 @@ router.post('/update_cold_zone', optionalAuth, async (req, res) => {
       return res.status(400).json({ message: "This bag doesn't have a cold zone" });
     }
 
-    // Update device current readings
     const { error: updateError } = await supabase
       .from('devices')
       .update({
@@ -482,7 +483,6 @@ router.post('/update_cold_zone', optionalAuth, async (req, res) => {
 
     if (updateError) throw updateError;
 
-    // Insert reading into history
     const { error: insertError } = await supabase
       .from('temperature_readings')
       .insert({
@@ -502,12 +502,11 @@ router.post('/update_cold_zone', optionalAuth, async (req, res) => {
   }
 });
 
-// Update battery - Requires authentication or device auth
+// Update battery (keep existing)
 router.post('/update_battery', optionalAuth, async (req, res) => {
   try {
     const { device_id, charge_level, voltage, is_charging } = req.body;
 
-    // Update device current readings
     const { error: updateError } = await supabase
       .from('devices')
       .update({
@@ -520,7 +519,6 @@ router.post('/update_battery', optionalAuth, async (req, res) => {
 
     if (updateError) throw updateError;
 
-    // Insert reading into history
     const { error: insertError } = await supabase
       .from('battery_readings')
       .insert({
@@ -540,12 +538,11 @@ router.post('/update_battery', optionalAuth, async (req, res) => {
   }
 });
 
-// Update hot zone settings - Requires authentication
+// Update hot zone settings
 router.post('/update_hot_zone_settings', verifyToken, async (req, res) => {
   try {
     const { device_id, target_temp, heater_on, fan_on } = req.body;
 
-    // Verify ownership
     const { data: device } = await supabase
       .from('devices')
       .select('owner_id')
@@ -578,12 +575,11 @@ router.post('/update_hot_zone_settings', verifyToken, async (req, res) => {
   }
 });
 
-// Update cold zone settings - Requires authentication
+// Update cold zone settings
 router.post('/update_cold_zone_settings', verifyToken, async (req, res) => {
   try {
     const { device_id, target_temp, cooler_on, fan_on } = req.body;
 
-    // Verify ownership
     const { data: device } = await supabase
       .from('devices')
       .select('owner_id, bag_type')
@@ -620,7 +616,7 @@ router.post('/update_cold_zone_settings', verifyToken, async (req, res) => {
   }
 });
 
-// Get alerts - Requires authentication
+// Get alerts
 router.get('/alerts', verifyToken, async (req, res) => {
   try {
     const { device_id } = req.query;
@@ -633,7 +629,6 @@ router.get('/alerts', verifyToken, async (req, res) => {
 
     if (error) throw error;
 
-    // Verify ownership
     if (device.owner_id !== req.user.id) {
       return res.status(403).json({ 
         message: 'Unauthorized to access this device' 
@@ -642,7 +637,6 @@ router.get('/alerts', verifyToken, async (req, res) => {
 
     const alerts = [];
 
-    // Check hot zone
     if (device.hot_zone_current_temp < device.safety_min_temp) {
       alerts.push({
         type: 'danger',
@@ -658,7 +652,6 @@ router.get('/alerts', verifyToken, async (req, res) => {
       });
     }
 
-    // Check cold zone (if dual-zone)
     if (device.bag_type === 'dual-zone') {
       if (device.cold_zone_current_temp < device.safety_min_temp) {
         alerts.push({
@@ -676,7 +669,6 @@ router.get('/alerts', verifyToken, async (req, res) => {
       }
     }
 
-    // Check battery
     if (device.battery_charge_level < device.safety_low_battery) {
       alerts.push({
         type: 'warning',
@@ -695,10 +687,9 @@ router.get('/alerts', verifyToken, async (req, res) => {
 // ADMIN ENDPOINTS
 // ============================================
 
-// Get all devices (admin only) - NO JWT REQUIRED, uses passkey
+// Get all devices (admin only)
 router.get('/all-devices', async (req, res) => {
   try {
-    // Check admin passkey in header
     const adminPasskey = req.headers['x-admin-passkey'];
     const expectedPasskey = process.env.ADMIN_PASSKEY || 'INFINOS2025ADMIN';
 
@@ -722,10 +713,9 @@ router.get('/all-devices', async (req, res) => {
   }
 });
 
-// Get admin statistics (admin only) - NO JWT REQUIRED, uses passkey
+// Get admin statistics
 router.get('/admin-stats', async (req, res) => {
   try {
-    // Check admin passkey in header
     const adminPasskey = req.headers['x-admin-passkey'];
     const expectedPasskey = process.env.ADMIN_PASSKEY || 'INFINOS2025ADMIN';
 
@@ -747,7 +737,6 @@ router.get('/admin-stats', async (req, res) => {
     const heatingOnly = devices.filter(d => d.bag_type === 'heating-only').length;
     const claimed = devices.filter(d => d.is_claimed === true).length;
     
-    // Get unique owners
     const uniqueOwners = new Set(
       devices
         .filter(d => d.owner_id)
@@ -770,10 +759,9 @@ router.get('/admin-stats', async (req, res) => {
   }
 });
 
-// Seed devices (admin only) - Create multiple devices at once
+// Seed devices (admin only)
 router.post('/seed-devices', async (req, res) => {
   try {
-    // Check admin passkey in header
     const adminPasskey = req.headers['x-admin-passkey'];
     const expectedPasskey = process.env.ADMIN_PASSKEY || 'INFINOS2025ADMIN';
 
@@ -797,7 +785,6 @@ router.post('/seed-devices', async (req, res) => {
       });
     }
 
-    // Generate devices
     const devicesToCreate = [];
     for (let i = 0; i < quantity; i++) {
       devicesToCreate.push({
@@ -829,7 +816,6 @@ router.post('/seed-devices', async (req, res) => {
       });
     }
 
-    // Insert into database
     const { data: createdDevices, error } = await supabase
       .from('devices')
       .insert(devicesToCreate)
