@@ -1,24 +1,48 @@
 // FILE: infinosbackend/server.js (REPLACE ENTIRE FILE)
-// FIXED - Auth routes now properly mounted
+// PRODUCTION READY - Fixed port 8080 and CORS configuration
 
 require('dotenv').config();
 const express = require('express');
 const app = express();
-const bodyParser = require('body-parser');
 const cors = require('cors');
 const deviceSimulator = require('./services/deviceSimulator');
 const supabase = require('./config/supabase');
 
-const PORT = process.env.PORT || 4000;
+// CRITICAL: Must use port 8080 for Elastic Beanstalk
+const PORT = process.env.PORT || 8080;
+
+app.get('/', (req, res) => {
+  res.status(200).send('Infinos Backend is running 🚀');
+});
 
 // Routes
 const testAPIRouter = require('./routes/testAPI');
 const DeviceRouter = require('./routes/Device');
 const authRouter = require('./routes/auth');
 
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// CORS Configuration - Add your Amplify URL after frontend deployment
+const allowedOrigins = [
+  'http://localhost:3000',
+  // Add your Amplify URL here after deploying frontend
+  // Example: 'https://main.d1a2b3c4d5e6.amplifyapp.com',
+];
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -26,6 +50,8 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     message: 'Server is running',
+    environment: process.env.NODE_ENV || 'development',
+    port: PORT,
     activeSimulations: runningSimulations.length,
     simulatingDevices: runningSimulations
   });
@@ -34,7 +60,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/testAPI', testAPIRouter);
 app.use('/device', DeviceRouter);
-app.use('/auth', authRouter); // ✅ FIXED - Auth routes now mounted
+app.use('/auth', authRouter);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -45,7 +71,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-
 // Simple admin endpoint - add device
 app.post('/admin/add-device', async (req, res) => {
   try {
@@ -54,7 +79,7 @@ app.post('/admin/add-device', async (req, res) => {
     const { name, device_code, bag_type, admin_key } = req.body;
 
     // Check admin key
-    if (admin_key !== 'infinos-admin-2024') {
+    if (admin_key !== process.env.ADMIN_KEY) {
       return res.status(403).json({ message: 'Invalid admin key' });
     }
 
