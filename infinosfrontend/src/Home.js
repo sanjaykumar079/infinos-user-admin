@@ -214,9 +214,9 @@ function Home() {
         <div className="footer-bottom">
           <p>© 2025 INFINOS. All rights reserved.</p>
           <div className="social-links">
-            <a href="#">LinkedIn</a>
-            <a href="#">Twitter</a>
-            <a href="#">GitHub</a>
+            <a href="https://www.linkedin.com/company/infinostech-pvt-ltd/">LinkedIn</a>
+            <a href="https://x.com/infinostech">Twitter</a>
+            <a href="https://www.instagram.com/infinostech/">Instagram</a>
           </div>
         </div>
       </footer>

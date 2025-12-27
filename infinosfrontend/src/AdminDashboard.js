@@ -166,19 +166,22 @@ function AdminDashboard() {
     e.preventDefault();
     setAddDeviceError(null);
     setAddDeviceLoading(true);
-
+  
     try {
-      await deviceAPI.createDevice({
+      // Use the simple endpoint
+      await axios.post('http://localhost:4000/admin/add-device', {
         name: newDevice.name,
         device_code: newDevice.device_code,
-        bag_type: newDevice.bag_type
+        bag_type: newDevice.bag_type,
+        admin_key: 'infinos-admin-2024' // Pass in body
       });
-
+    
       setNewDevice({ name: "", device_code: "", bag_type: "dual-zone" });
       setShowAddDeviceModal(false);
-      fetchAdminData();
+      fetchAdminData(); // Refresh the list
+      alert('✅ Device created successfully!');
     } catch (err) {
-      setAddDeviceError(err.response?.data?.message || err.message || 'Failed to add device');
+      setAddDeviceError(err.response?.data?.message || 'Failed to add device');
     } finally {
       setAddDeviceLoading(false);
     }

@@ -163,6 +163,14 @@ export const deviceAPI = {
       heater_on: heaterOn,
       fan_on: fanOn,
     }),
+  createDevice: async (deviceData) => {
+    const adminPasskey = localStorage.getItem('admin_passkey');
+    return api.post('/device/create', deviceData, {
+      headers: {
+        'x-admin-passkey': adminPasskey
+      }
+    });
+  },
   updateColdZoneSettings: (deviceId, targetTemp, coolerOn, fanOn) =>
     api.post('/device/update_cold_zone_settings', {
       device_id: deviceId,

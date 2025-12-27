@@ -69,7 +69,7 @@ function BagControl() {
     }
   };
 
-  const getChartData = (history, label, color) => {
+const getChartData = (history, label, color) => {
     if (!history || history.length === 0) {
       return {
         labels: [],
@@ -84,7 +84,12 @@ function BagControl() {
       };
     }
 
-    const last20 = history.slice(-20);
+    // Sort by timestamp to ensure chronological order, then take last 20
+    const sortedHistory = [...history].sort((a, b) => 
+      new Date(a.timestamp) - new Date(b.timestamp)
+    );
+    const last20 = sortedHistory.slice(-20);
+    
     return {
       labels: last20.map((r) => new Date(r.timestamp).toLocaleTimeString()),
       datasets: [

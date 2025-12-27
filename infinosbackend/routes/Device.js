@@ -9,6 +9,81 @@ const crypto = require('crypto');
 const deviceSimulator = require('../services/deviceSimulator'); // ADD THIS
 
 // ... (keep all existing helper functions and routes)
+const authenticateAdminPasskey = (req, res, next) => {
+  const adminPasskey = req.headers['x-admin-passkey'];
+  const ADMIN_PASSKEY = process.env.ADMIN_PASSKEY || 'infinos-admin-2024';
+
+  if (!adminPasskey || adminPasskey !== ADMIN_PASSKEY) {
+    return res.status(403).json({ message: 'Unauthorized: Invalid admin passkey' });
+  }
+
+  next();
+};
+
+// Admin: Create new device
+router.post('/create', authenticateAdminPasskey, async (req, res) => {
+  try {
+    const { name, device_code, bag_type } = req.body;
+
+    // Validate required fields
+    if (!name || !device_code || !bag_type) {
+      return res.status(400).json({ 
+        message: 'Missing required fields: name, device_code, and bag_type are required' 
+      });
+    }
+
+    // Check if device code already exists
+    const existingDevice = await Device.findOne({ device_code });
+    if (existingDevice) {
+      return res.status(400).json({ 
+        message: 'Device code already exists. Please use a unique code.' 
+      });
+    }
+
+    // Validate bag type
+    const validBagTypes = ['dual-zone', 'heating-only', 'cooling-only'];
+    if (!validBagTypes.includes(bag_type)) {
+      return res.status(400).json({ 
+        message: 'Invalid bag type. Must be: dual-zone, heating-only, or cooling-only' 
+      });
+    }
+
+    // Create new device
+    const newDevice = new Device({
+      name,
+      device_code,
+      bag_type,
+      status: false,
+      is_claimed: false,
+      battery_charge_level: 100,
+      hot_zone_current_temp: 0,
+      hot_zone_target_temp: 0,
+      hot_zone_heater_on: false,
+      hot_zone_fan_on: false,
+      cold_zone_current_temp: 0,
+      cold_zone_target_temp: 0,
+      cold_zone_cooler_on: false,
+      cold_zone_fan_on: false,
+      safety_low_temp: 0,
+      safety_high_temp: 100,
+      last_seen: null
+    });
+
+    await newDevice.save();
+
+    res.status(201).json({
+      message: 'Device created successfully',
+      device: newDevice
+    });
+
+  } catch (err) {
+    console.error('Error creating device:', err);
+    res.status(500).json({ 
+      message: 'Failed to create device',
+      error: err.message 
+    });
+  }
+});
 
 // Helper function to generate device code
 const generateDeviceCode = () => {
