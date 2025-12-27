@@ -23,8 +23,7 @@ const authRouter = require('./routes/auth');
 // CORS Configuration - Add your Amplify URL after frontend deployment
 const allowedOrigins = [
   'http://localhost:3000',
-  // Add your Amplify URL here after deploying frontend
-  // Example: 'https://main.d1a2b3c4d5e6.amplifyapp.com',
+  'https://main.d1a2b3c4d5e6.amplifyapp.com',  // ← Your Amplify URL
 ];
 
 app.use(cors({

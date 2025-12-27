@@ -482,14 +482,7 @@ function Login() {
             </div>
           </div>
 
-          <div className="trusted-by">
-            <p className="trusted-label">Trusted by leading delivery companies</p>
-            <div className="trust-badges">
-              <div className="trust-badge">🏆 ISO Certified</div>
-              <div className="trust-badge">🔒 SOC 2 Compliant</div>
-              <div className="trust-badge">✅ GDPR Ready</div>
-            </div>
-          </div>
+    
         </div>
 
         {/* Right Side - Modern Form */}
