@@ -40,7 +40,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   // ✅ NEW: Add withCredentials for CORS
-  withCredentials: false,
+  withCredentials: true,
 });
 
 // Request interceptor
