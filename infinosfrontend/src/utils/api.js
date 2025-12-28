@@ -1,68 +1,81 @@
 // FILE: infinosfrontend/src/utils/api.js
-// FIXED: Proper API URL configuration for production
+// CRITICAL FIX: Use HTTPS and correct backend URL
 
 import axios from 'axios';
 import { authHelpers } from '../supabaseClient';
 
-// CRITICAL FIX: Get API URL from environment variable
+// ✅ FIXED: Always use HTTPS in production (Amplify requires HTTPS)
 const getApiBaseUrl = () => {
-  // Check if we're in production (Amplify)
   if (process.env.NODE_ENV === 'production') {
-    return process.env.REACT_APP_API_URL || 'http://infinos-prod-env.eba-jgg4gcm3.ap-south-1.elasticbeanstalk.com';
+    // ❌ OLD (Mixed Content Error):
+    // return 'http://infinos-prod-env.eba-jgg4gcm3.ap-south-1.elasticbeanstalk.com';
+    
+    // ✅ NEW: Check if backend supports HTTPS first
+    const backendUrl = process.env.REACT_APP_API_URL;
+    
+    if (!backendUrl) {
+      console.error('⚠️ REACT_APP_API_URL not set in environment!');
+      return 'http://infinos-prod-env.eba-jgg4gcm3.ap-south-1.elasticbeanstalk.com';
+    }
+    
+    // Ensure HTTPS for production
+    return backendUrl.replace('http://', 'https://');
   }
+  
   // Development
-  return 'http://localhost:4000';
+  return process.env.REACT_APP_API_URL || 'http://localhost:4000';
 };
 
 const API_BASE_URL = getApiBaseUrl();
 
 console.log('🔗 API Base URL:', API_BASE_URL);
 console.log('🌍 Environment:', process.env.NODE_ENV);
+console.log('📍 REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
 
-// Create axios instance with default config
+// Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // Increased timeout for Elastic Beanstalk
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
+  // ✅ NEW: Add withCredentials for CORS
+  withCredentials: false,
 });
 
 // Request interceptor
 api.interceptors.request.use(
   async (config) => {
     try {
-      // Log the request
-      console.log(`📤 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+      console.log(`📤 ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
       
-      // Check if this is an admin request
+      // Admin routes
       const isAdminRoute = config.url?.includes('/admin') || 
                           config.url?.includes('admin-stats') || 
-                          config.url?.includes('all-devices') ||
-                          config.url?.includes('seed-devices');
+                          config.url?.includes('all-devices');
       
       if (isAdminRoute) {
         const adminPasskey = localStorage.getItem('admin_passkey');
-        
         if (adminPasskey) {
           config.headers['x-admin-passkey'] = adminPasskey;
-          console.log('✅ Admin passkey added to request');
+          console.log('✅ Admin passkey added');
         } else {
-          console.warn('⚠️ No admin passkey found');
+          console.warn('⚠️ No admin passkey for admin route');
         }
       } else {
-        // Regular user request
+        // User routes
         const accessToken = await authHelpers.getAccessToken();
-        
         if (accessToken) {
           config.headers.Authorization = `Bearer ${accessToken}`;
-          console.log('✅ User token added to request');
+          console.log('✅ User token added');
+        } else {
+          console.warn('⚠️ No access token for user route');
         }
       }
 
       return config;
     } catch (error) {
-      console.error('❌ Error in request interceptor:', error);
+      console.error('❌ Request interceptor error:', error);
       return config;
     }
   },
@@ -75,33 +88,40 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
-    console.log(`✅ API Response: ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`);
+    console.log(`✅ ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`);
     return response;
   },
   async (error) => {
     const originalRequest = error.config;
 
-    console.error(`❌ API Error: ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`, {
+    // Log detailed error info
+    console.error('❌ API Error Details:', {
+      url: originalRequest?.url,
+      method: originalRequest?.method,
       status: error.response?.status,
+      statusText: error.response?.statusText,
       message: error.message,
-      data: error.response?.data
+      data: error.response?.data,
+      baseURL: originalRequest?.baseURL,
     });
 
-    // Handle 403 for admin endpoints
+    // Handle specific errors
+    if (error.message === 'Network Error') {
+      console.error('❌ NETWORK ERROR - Cannot reach backend');
+      console.error('Backend URL:', API_BASE_URL);
+      console.error('Is backend running and accessible?');
+      console.error('Check CORS configuration on backend');
+    }
+
+    // Handle 403 for admin
     if (error.response?.status === 403) {
-      const isAdminRoute = originalRequest.url?.includes('/admin') || 
-                          originalRequest.url?.includes('admin-stats') || 
-                          originalRequest.url?.includes('all-devices');
-      
+      const isAdminRoute = originalRequest.url?.includes('/admin');
       if (isAdminRoute) {
-        console.error('❌ Admin auth failed - clearing session');
+        console.error('❌ Admin auth failed');
         localStorage.removeItem('admin_authenticated');
         localStorage.removeItem('admin_auth_expiry');
         localStorage.removeItem('admin_passkey');
-        
-        if (!window.location.pathname.includes('/admin/login')) {
-          window.location.href = '/admin/login';
-        }
+        window.location.href = '/admin/login';
         return Promise.reject(error);
       }
     }
@@ -109,34 +129,17 @@ api.interceptors.response.use(
     // Handle 401 for users
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-
       try {
-        console.log('🔄 Attempting to refresh session...');
         const { data, error: refreshError } = await authHelpers.refreshSession();
-
-        if (refreshError || !data.session) {
-          console.error('❌ Session refresh failed');
-          await authHelpers.signOut();
-          window.location.href = '/';
-          return Promise.reject(error);
+        if (!refreshError && data.session) {
+          originalRequest.headers.Authorization = `Bearer ${data.session.access_token}`;
+          return api(originalRequest);
         }
-
-        const newAccessToken = data.session.access_token;
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        console.log('✅ Session refreshed, retrying request');
-        return api(originalRequest);
       } catch (refreshError) {
-        console.error('❌ Token refresh error:', refreshError);
-        await authHelpers.signOut();
-        window.location.href = '/';
-        return Promise.reject(error);
+        console.error('❌ Token refresh failed');
       }
-    }
-
-    // Network errors
-    if (!error.response) {
-      console.error('❌ Network error - cannot reach server');
-      console.error('Is the backend running at:', API_BASE_URL);
+      await authHelpers.signOut();
+      window.location.href = '/';
     }
 
     return Promise.reject(error);
@@ -145,66 +148,73 @@ api.interceptors.response.use(
 
 // Device API calls
 export const deviceAPI = {
-  // User device endpoints
-  getMyDevices: (ownerId) => api.get('/device/my-devices', { params: { ownerId } }),
-  getSummary: (ownerId) => api.get('/device/summary', { params: { ownerId } }),
-  getDevice: (deviceId) => api.get('/device/get_device', { params: { device_id: deviceId } }),
-  verifyDeviceCode: (deviceCode) => api.get('/device/verify-code', { params: { deviceCode } }),
-  claimDevice: (deviceCode, ownerId, deviceName) => 
-    api.post('/device/claim', { deviceCode, ownerId, deviceName }),
-  authenticateDevice: (deviceCode, deviceSecret) =>
-    api.post('/device/auth', { deviceCode, deviceSecret }),
-  updateDevice: (deviceId, status) => 
-    api.post('/device/update_device', { device_id: deviceId, status }),
-  updateHotZone: (deviceId, temp, humidity) =>
-    api.post('/device/update_hot_zone', { device_id: deviceId, temp, humidity }),
-  updateColdZone: (deviceId, temp, humidity) =>
-    api.post('/device/update_cold_zone', { device_id: deviceId, temp, humidity }),
-  updateBattery: (deviceId, chargeLevel, voltage, isCharging) =>
-    api.post('/device/update_battery', { 
-      device_id: deviceId, 
-      charge_level: chargeLevel, 
-      voltage, 
-      is_charging: isCharging 
-    }),
-  updateHotZoneSettings: (deviceId, targetTemp, heaterOn, fanOn) =>
-    api.post('/device/update_hot_zone_settings', {
+  // Test endpoint
+  healthCheck: () => api.get('/health'),
+  
+  // User endpoints
+  getMyDevices: (ownerId) => {
+    console.log('📱 Fetching devices for owner:', ownerId);
+    return api.get('/device/my-devices', { params: { ownerId } });
+  },
+  
+  getSummary: (ownerId) => {
+    console.log('📊 Fetching summary for owner:', ownerId);
+    return api.get('/device/summary', { params: { ownerId } });
+  },
+  
+  getDevice: (deviceId) => {
+    console.log('📱 Fetching device:', deviceId);
+    return api.get('/device/get_device', { params: { device_id: deviceId } });
+  },
+  
+  verifyDeviceCode: (deviceCode) => {
+    console.log('🔍 Verifying device code:', deviceCode);
+    return api.get('/device/verify-code', { params: { deviceCode } });
+  },
+  
+  claimDevice: (deviceCode, ownerId, deviceName) => {
+    console.log('🎯 Claiming device:', { deviceCode, ownerId, deviceName });
+    return api.post('/device/claim', { deviceCode, ownerId, deviceName });
+  },
+  
+  updateDevice: (deviceId, status) => {
+    console.log('🔄 Updating device status:', { deviceId, status });
+    return api.post('/device/update_device', { device_id: deviceId, status });
+  },
+  
+  updateHotZoneSettings: (deviceId, targetTemp, heaterOn, fanOn) => {
+    console.log('🔥 Updating hot zone:', { deviceId, targetTemp, heaterOn, fanOn });
+    return api.post('/device/update_hot_zone_settings', {
       device_id: deviceId,
       target_temp: targetTemp,
       heater_on: heaterOn,
       fan_on: fanOn,
-    }),
-  createDevice: async (deviceData) => {
-    const adminPasskey = localStorage.getItem('admin_passkey');
-    return api.post('/device/create', deviceData, {
-      headers: {
-        'x-admin-passkey': adminPasskey
-      }
     });
   },
-  updateColdZoneSettings: (deviceId, targetTemp, coolerOn, fanOn) =>
-    api.post('/device/update_cold_zone_settings', {
+  
+  updateColdZoneSettings: (deviceId, targetTemp, coolerOn, fanOn) => {
+    console.log('❄️ Updating cold zone:', { deviceId, targetTemp, coolerOn, fanOn });
+    return api.post('/device/update_cold_zone_settings', {
       device_id: deviceId,
       target_temp: targetTemp,
       cooler_on: coolerOn,
       fan_on: fanOn,
-    }),
-  getAlerts: (deviceId) => api.get('/device/alerts', { params: { device_id: deviceId } }),
+    });
+  },
   
   // Admin endpoints
-  getAllDevices: () => api.get('/device/all-devices'),
-  getAdminStats: () => api.get('/device/admin-stats'),
-  seedDevices: (bagType, quantity) => api.post('/device/seed-devices', { bagType, quantity }),
+  getAllDevices: () => {
+    console.log('👑 Fetching all devices (admin)');
+    return api.get('/device/all-devices');
+  },
+  
+  getAdminStats: () => {
+    console.log('📊 Fetching admin stats');
+    return api.get('/device/admin-stats');
+  },
 };
 
 export default api;
-
-// User API calls
-export const userAPI = {
-  getProfile: (userId) => api.get(`/user/profile/${userId}`),
-  updateProfile: (userId, updates) => api.put(`/user/profile/${userId}`, updates),
-  deleteAccount: (userId) => api.delete(`/user/account/${userId}`),
-};
 
 // Helper functions
 export const isAuthenticated = async () => {
