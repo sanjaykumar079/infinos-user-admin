@@ -1,28 +1,25 @@
-// FILE: infinosfrontend/src/utils/api.js
-// CRITICAL FIX: Use HTTPS and correct backend URL
+// infinosfrontend/src/utils/api.js - FIXED VERSION
 
 import axios from 'axios';
 import { authHelpers } from '../supabaseClient';
 
-// ✅ FIXED: Always use HTTPS in production (Amplify requires HTTPS)
+// ✅ FIXED: Proper API URL handling for production
 const getApiBaseUrl = () => {
   if (process.env.NODE_ENV === 'production') {
-    // ❌ OLD (Mixed Content Error):
-    // return 'http://infinos-prod-env.eba-jgg4gcm3.ap-south-1.elasticbeanstalk.com';
-    
-    // ✅ NEW: Check if backend supports HTTPS first
+    // Use the environment variable - should be set in Amplify
     const backendUrl = process.env.REACT_APP_API_URL;
     
     if (!backendUrl) {
-      console.error('⚠️ REACT_APP_API_URL not set in environment!');
+      console.error('⚠️ REACT_APP_API_URL not set!');
+      // Fallback to your EB URL
       return 'http://infinos-prod-env.eba-jgg4gcm3.ap-south-1.elasticbeanstalk.com';
     }
     
-    // Ensure HTTPS for production
-    return backendUrl.replace('http://', 'https://');
+    console.log('✅ Using backend URL:', backendUrl);
+    return backendUrl;
   }
   
-  // Development
+  // Development - use localhost
   return process.env.REACT_APP_API_URL || 'http://localhost:4000';
 };
 
@@ -30,7 +27,6 @@ const API_BASE_URL = getApiBaseUrl();
 
 console.log('🔗 API Base URL:', API_BASE_URL);
 console.log('🌍 Environment:', process.env.NODE_ENV);
-console.log('📍 REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
 
 // Create axios instance
 const api = axios.create({
@@ -39,7 +35,6 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  // ✅ NEW: Add withCredentials for CORS
   withCredentials: true,
 });
 
@@ -47,7 +42,7 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      console.log(`📤 ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+      console.log(`📤 ${config.method?.toUpperCase()} ${config.url}`);
       
       // Admin routes
       const isAdminRoute = config.url?.includes('/admin') || 
@@ -58,18 +53,12 @@ api.interceptors.request.use(
         const adminPasskey = localStorage.getItem('admin_passkey');
         if (adminPasskey) {
           config.headers['x-admin-passkey'] = adminPasskey;
-          console.log('✅ Admin passkey added');
-        } else {
-          console.warn('⚠️ No admin passkey for admin route');
         }
       } else {
         // User routes
         const accessToken = await authHelpers.getAccessToken();
         if (accessToken) {
           config.headers.Authorization = `Bearer ${accessToken}`;
-          console.log('✅ User token added');
-        } else {
-          console.warn('⚠️ No access token for user route');
         }
       }
 
@@ -88,45 +77,39 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
-    console.log(`✅ ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`);
+    console.log(`✅ ${response.status} ${response.config.url}`);
     return response;
   },
   async (error) => {
     const originalRequest = error.config;
 
-    // Log detailed error info
-    console.error('❌ API Error Details:', {
+    // Log error details
+    console.error('❌ API Error:', {
       url: originalRequest?.url,
       method: originalRequest?.method,
       status: error.response?.status,
-      statusText: error.response?.statusText,
       message: error.message,
       data: error.response?.data,
-      baseURL: originalRequest?.baseURL,
     });
 
-    // Handle specific errors
+    // Handle network errors
     if (error.message === 'Network Error') {
-      console.error('❌ NETWORK ERROR - Cannot reach backend');
-      console.error('Backend URL:', API_BASE_URL);
-      console.error('Is backend running and accessible?');
-      console.error('Check CORS configuration on backend');
+      console.error('❌ NETWORK ERROR - Check:');
+      console.error('1. Backend is running');
+      console.error('2. CORS is configured');
+      console.error('3. URL is correct:', API_BASE_URL);
     }
 
-    // Handle 403 for admin
-    if (error.response?.status === 403) {
-      const isAdminRoute = originalRequest.url?.includes('/admin');
-      if (isAdminRoute) {
-        console.error('❌ Admin auth failed');
-        localStorage.removeItem('admin_authenticated');
-        localStorage.removeItem('admin_auth_expiry');
-        localStorage.removeItem('admin_passkey');
-        window.location.href = '/admin/login';
-        return Promise.reject(error);
-      }
+    // Handle 403 admin
+    if (error.response?.status === 403 && originalRequest.url?.includes('admin')) {
+      localStorage.removeItem('admin_authenticated');
+      localStorage.removeItem('admin_auth_expiry');
+      localStorage.removeItem('admin_passkey');
+      window.location.href = '/admin/login';
+      return Promise.reject(error);
     }
 
-    // Handle 401 for users
+    // Handle 401 user
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
@@ -148,17 +131,17 @@ api.interceptors.response.use(
 
 // Device API calls
 export const deviceAPI = {
-  // Test endpoint
+  // Health check
   healthCheck: () => api.get('/health'),
   
   // User endpoints
   getMyDevices: (ownerId) => {
-    console.log('📱 Fetching devices for owner:', ownerId);
+    console.log('📱 Fetching devices for:', ownerId);
     return api.get('/device/my-devices', { params: { ownerId } });
   },
   
   getSummary: (ownerId) => {
-    console.log('📊 Fetching summary for owner:', ownerId);
+    console.log('📊 Fetching summary for:', ownerId);
     return api.get('/device/summary', { params: { ownerId } });
   },
   
@@ -168,7 +151,7 @@ export const deviceAPI = {
   },
   
   verifyDeviceCode: (deviceCode) => {
-    console.log('🔍 Verifying device code:', deviceCode);
+    console.log('🔍 Verifying code:', deviceCode);
     return api.get('/device/verify-code', { params: { deviceCode } });
   },
   
@@ -178,7 +161,7 @@ export const deviceAPI = {
   },
   
   updateDevice: (deviceId, status) => {
-    console.log('🔄 Updating device status:', { deviceId, status });
+    console.log('🔄 Updating device:', { deviceId, status });
     return api.post('/device/update_device', { device_id: deviceId, status });
   },
   
