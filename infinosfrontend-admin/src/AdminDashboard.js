@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { deviceAPI } from "../../infinosfrontend/src/utils/api";
+import { deviceAPI } from "./utils/api";
 import { useAdminAuth } from "./contexts/AdminAuthContext";
 import "./AdminDashboard.css";
 import axios from "axios";
@@ -40,21 +40,21 @@ function AdminDashboard() {
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log('📊 Fetching admin data...');
-      
+
       const adminPasskey = localStorage.getItem('admin_passkey');
       if (!adminPasskey) {
         throw new Error('Admin authentication required');
       }
-      
+
       console.log('🔑 Admin passkey found:', adminPasskey ? 'YES' : 'NO');
-      
+
       // Fetch admin statistics
       const statsRes = await deviceAPI.getAdminStats();
       console.log('✅ Stats loaded:', statsRes.data);
       setStats(statsRes.data);
-      
+
       // Fetch all devices
       const devicesRes = await deviceAPI.getAllDevices();
       console.log('✅ Devices loaded:', devicesRes.data?.length || 0);
@@ -69,31 +69,31 @@ function AdminDashboard() {
             'x-admin-passkey': adminPasskey
           }
         });
-        
+
         console.log('📦 Users API Response:', usersRes.data);
-        
+
         const allUsers = usersRes.data?.users || [];
         console.log('✅ Parsed users count:', allUsers.length);
-        
+
         if (allUsers.length > 0) {
           console.log('👤 Sample user structure:', JSON.stringify(allUsers[0], null, 2));
         }
-        
+
         setUsers(allUsers);
 
         // Group devices by user
         const devicesByUser = {};
-        
+
         console.log('🔍 Starting device grouping process...');
-        
+
         const claimedDevices = allDevices.filter(d => d.is_claimed && d.owner_id);
         console.log('✅ Claimed devices:', claimedDevices.length);
-        
+
         claimedDevices.forEach(device => {
           const user = allUsers.find(u => u.id === device.owner_id);
-          
+
           console.log(`🔗 Processing device: "${device.name}" (owner: ${device.owner_id})`);
-          
+
           if (user) {
             if (!devicesByUser[device.owner_id]) {
               devicesByUser[device.owner_id] = {
@@ -127,20 +127,20 @@ function AdminDashboard() {
 
         console.log('✅ Grouped users with devices:', Object.keys(devicesByUser).length);
         setUserDevicesMap(devicesByUser);
-        
+
       } catch (err) {
         console.error('❌ Error fetching users:', err);
         if (err.response?.status === 404) {
           console.error('❌ /auth/users endpoint not found! Check server.js');
         }
       }
-      
+
       setLoading(false);
     } catch (err) {
       console.error("❌ Error fetching admin data:", err);
       setError(err.response?.data?.message || err.message || 'Failed to load data');
       setLoading(false);
-      
+
       if (err.response?.status === 403) {
         logoutAdmin();
         navigate('/admin/login');
@@ -168,7 +168,7 @@ function AdminDashboard() {
     e.preventDefault();
     setAddDeviceError(null);
     setAddDeviceLoading(true);
-  
+
     try {
       // Use the simple endpoint
       await axios.post(`${API_BASE_URL}/admin/add-device`, {
@@ -177,7 +177,7 @@ function AdminDashboard() {
         bag_type: newDevice.bag_type,
         admin_key: 'infinos-admin-2024' // Pass in body
       });
-    
+
       setNewDevice({ name: "", device_code: "", bag_type: "dual-zone" });
       setShowAddDeviceModal(false);
       fetchAdminData(); // Refresh the list
@@ -206,9 +206,9 @@ function AdminDashboard() {
         <div className="admin-error">
           <div className="error-icon">
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <circle cx="12" cy="12" r="10" strokeWidth="2"/>
-              <line x1="12" y1="8" x2="12" y2="12" strokeWidth="2"/>
-              <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2"/>
+              <circle cx="12" cy="12" r="10" strokeWidth="2" />
+              <line x1="12" y1="8" x2="12" y2="12" strokeWidth="2" />
+              <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2" />
             </svg>
           </div>
           <h2>Failed to Load Dashboard</h2>
@@ -216,7 +216,7 @@ function AdminDashboard() {
           <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <button className="admin-action-btn" onClick={handleRetry}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
               </svg>
               Retry
             </button>
@@ -237,9 +237,9 @@ function AdminDashboard() {
           <div className="admin-header-brand">
             <div className="admin-header-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" strokeWidth="2"/>
-                <path d="M2 17l10 5 10-5" strokeWidth="2"/>
-                <path d="M2 12l10 5 10-5" strokeWidth="2"/>
+                <path d="M12 2L2 7l10 5 10-5-10-5z" strokeWidth="2" />
+                <path d="M2 17l10 5 10-5" strokeWidth="2" />
+                <path d="M2 12l10 5 10-5" strokeWidth="2" />
               </svg>
             </div>
             <div>
@@ -247,24 +247,24 @@ function AdminDashboard() {
               <p className="admin-header-subtitle">System Overview Dashboard</p>
             </div>
           </div>
-          
+
           <div className="admin-header-actions">
-            <button 
+            <button
               className="admin-add-device-btn"
               onClick={() => setShowAddDeviceModal(true)}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
               <span className="btn-text">Add Device</span>
             </button>
-            
+
             <button className="admin-logout-btn" onClick={handleLogout}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" strokeWidth="2"/>
-                <polyline points="16 17 21 12 16 7" strokeWidth="2"/>
-                <line x1="21" y1="12" x2="9" y2="12" strokeWidth="2"/>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" strokeWidth="2" />
+                <polyline points="16 17 21 12 16 7" strokeWidth="2" />
+                <line x1="21" y1="12" x2="9" y2="12" strokeWidth="2" />
               </svg>
               <span className="btn-text">Logout</span>
             </button>
@@ -279,10 +279,10 @@ function AdminDashboard() {
             <div className="admin-stat-card admin-stat-primary">
               <div className="admin-stat-icon">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" strokeWidth="2"/>
-                  <circle cx="9" cy="7" r="4" strokeWidth="2"/>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" strokeWidth="2"/>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" strokeWidth="2"/>
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" strokeWidth="2" />
+                  <circle cx="9" cy="7" r="4" strokeWidth="2" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" strokeWidth="2" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" strokeWidth="2" />
                 </svg>
               </div>
               <div className="admin-stat-content">
@@ -295,8 +295,8 @@ function AdminDashboard() {
             <div className="admin-stat-card admin-stat-devices">
               <div className="admin-stat-icon">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <rect x="5" y="2" width="14" height="20" rx="2" strokeWidth="2"/>
-                  <path d="M12 18h.01" strokeWidth="2"/>
+                  <rect x="5" y="2" width="14" height="20" rx="2" strokeWidth="2" />
+                  <path d="M12 18h.01" strokeWidth="2" />
                 </svg>
               </div>
               <div className="admin-stat-content">
@@ -309,7 +309,7 @@ function AdminDashboard() {
             <div className="admin-stat-card admin-stat-success">
               <div className="admin-stat-icon">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" strokeWidth="2"/>
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" strokeWidth="2" />
                 </svg>
               </div>
               <div className="admin-stat-content">
@@ -322,9 +322,9 @@ function AdminDashboard() {
             <div className="admin-stat-card admin-stat-warning">
               <div className="admin-stat-icon">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <circle cx="12" cy="12" r="10" strokeWidth="2"/>
-                  <line x1="12" y1="8" x2="12" y2="12" strokeWidth="2"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2"/>
+                  <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                  <line x1="12" y1="8" x2="12" y2="12" strokeWidth="2" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2" />
                 </svg>
               </div>
               <div className="admin-stat-content">
@@ -337,9 +337,9 @@ function AdminDashboard() {
             <div className="admin-stat-card admin-stat-dual">
               <div className="admin-stat-icon">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M12 2v20M2 12h20" strokeWidth="2"/>
-                  <circle cx="7" cy="7" r="3" fill="#EF4444" stroke="none"/>
-                  <circle cx="17" cy="17" r="3" fill="#3B82F6" stroke="none"/>
+                  <path d="M12 2v20M2 12h20" strokeWidth="2" />
+                  <circle cx="7" cy="7" r="3" fill="#EF4444" stroke="none" />
+                  <circle cx="17" cy="17" r="3" fill="#3B82F6" stroke="none" />
                 </svg>
               </div>
               <div className="admin-stat-content">
@@ -352,8 +352,8 @@ function AdminDashboard() {
             <div className="admin-stat-card admin-stat-heating">
               <div className="admin-stat-icon">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M12 2v20" strokeWidth="2"/>
-                  <circle cx="12" cy="12" r="5" fill="#EF4444" stroke="none"/>
+                  <path d="M12 2v20" strokeWidth="2" />
+                  <circle cx="12" cy="12" r="5" fill="#EF4444" stroke="none" />
                 </svg>
               </div>
               <div className="admin-stat-content">
@@ -366,8 +366,8 @@ function AdminDashboard() {
             <div className="admin-stat-card admin-stat-devices">
               <div className="admin-stat-icon">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M12 2v20M2 12h20" strokeWidth="2"/>
-                  <circle cx="12" cy="12" r="5" fill="#3B82F6" stroke="none"/>
+                  <path d="M12 2v20M2 12h20" strokeWidth="2" />
+                  <circle cx="12" cy="12" r="5" fill="#3B82F6" stroke="none" />
                 </svg>
               </div>
               <div className="admin-stat-content">
@@ -380,8 +380,8 @@ function AdminDashboard() {
             <div className="admin-stat-card admin-stat-success">
               <div className="admin-stat-icon">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" strokeWidth="2"/>
-                  <polyline points="22 4 12 14.01 9 11.01" strokeWidth="2"/>
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" strokeWidth="2" />
+                  <polyline points="22 4 12 14.01 9 11.01" strokeWidth="2" />
                 </svg>
               </div>
               <div className="admin-stat-content">
@@ -400,10 +400,10 @@ function AdminDashboard() {
             onClick={() => setActiveTab("overview")}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <rect x="3" y="3" width="7" height="7" strokeWidth="2"/>
-              <rect x="14" y="3" width="7" height="7" strokeWidth="2"/>
-              <rect x="14" y="14" width="7" height="7" strokeWidth="2"/>
-              <rect x="3" y="14" width="7" height="7" strokeWidth="2"/>
+              <rect x="3" y="3" width="7" height="7" strokeWidth="2" />
+              <rect x="14" y="3" width="7" height="7" strokeWidth="2" />
+              <rect x="14" y="14" width="7" height="7" strokeWidth="2" />
+              <rect x="3" y="14" width="7" height="7" strokeWidth="2" />
             </svg>
             <span className="tab-text">Overview</span>
           </button>
@@ -412,9 +412,9 @@ function AdminDashboard() {
             onClick={() => setActiveTab("users")}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" strokeWidth="2"/>
-              <circle cx="9" cy="7" r="4" strokeWidth="2"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" strokeWidth="2"/>
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" strokeWidth="2" />
+              <circle cx="9" cy="7" r="4" strokeWidth="2" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" strokeWidth="2" />
             </svg>
             <span className="tab-text">Users & Devices ({Object.keys(userDevicesMap).length})</span>
           </button>
@@ -423,8 +423,8 @@ function AdminDashboard() {
             onClick={() => setActiveTab("devices")}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <rect x="5" y="2" width="14" height="20" rx="2" strokeWidth="2"/>
-              <path d="M12 18h.01" strokeWidth="2"/>
+              <rect x="5" y="2" width="14" height="20" rx="2" strokeWidth="2" />
+              <path d="M12 18h.01" strokeWidth="2" />
             </svg>
             <span className="tab-text">All Devices ({devices.length})</span>
           </button>
@@ -438,18 +438,18 @@ function AdminDashboard() {
               <div className="admin-health-grid">
                 <div className="admin-health-item">
                   <div className="admin-health-bar">
-                    <div 
-                      className="admin-health-fill admin-health-success" 
-                      style={{ 
-                        width: `${stats && stats.totalDevices > 0 
-                          ? (stats.onlineDevices / stats.totalDevices * 100) 
-                          : 0}%` 
+                    <div
+                      className="admin-health-fill admin-health-success"
+                      style={{
+                        width: `${stats && stats.totalDevices > 0
+                          ? (stats.onlineDevices / stats.totalDevices * 100)
+                          : 0}%`
                       }}
                     ></div>
                   </div>
                   <p className="admin-health-label">
-                    Device Uptime: {stats && stats.totalDevices > 0 
-                      ? (stats.onlineDevices / stats.totalDevices * 100).toFixed(1) 
+                    Device Uptime: {stats && stats.totalDevices > 0
+                      ? (stats.onlineDevices / stats.totalDevices * 100).toFixed(1)
                       : 0}%
                   </p>
                 </div>
@@ -459,32 +459,32 @@ function AdminDashboard() {
             <div className="admin-card">
               <h3 className="admin-card-title">Quick Actions</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <button 
+                <button
                   className="admin-action-btn"
                   onClick={() => setShowAddDeviceModal(true)}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19"/>
-                    <line x1="5" y1="12" x2="19" y2="12"/>
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
                   Add New Device
                 </button>
-                <button 
+                <button
                   className="admin-action-btn-secondary"
                   onClick={() => setActiveTab("users")}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
                   </svg>
                   View Users & Devices
                 </button>
-                <button 
+                <button
                   className="admin-action-btn-secondary"
                   onClick={handleRetry}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
                   </svg>
                   Refresh Data
                 </button>
@@ -501,13 +501,13 @@ function AdminDashboard() {
                 <p style={{ color: '#6B7280', fontSize: '14px', marginBottom: '12px' }}>
                   No users with claimed devices yet.
                 </p>
-                <button 
+                <button
                   className="admin-action-btn-secondary"
                   onClick={handleRetry}
                   style={{ marginTop: '12px' }}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
                   </svg>
                   Refresh to Check Again
                 </button>
@@ -548,9 +548,9 @@ function AdminDashboard() {
                         {userData.user.name?.[0] || userData.user.email?.[0] || 'U'}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <h3 style={{ 
-                          margin: 0, 
-                          fontSize: '16px', 
+                        <h3 style={{
+                          margin: 0,
+                          fontSize: '16px',
                           fontWeight: '700',
                           color: '#111827',
                           marginBottom: '4px',
@@ -560,9 +560,9 @@ function AdminDashboard() {
                         }}>
                           {userData.user.name || 'Unknown User'}
                         </h3>
-                        <p style={{ 
-                          margin: 0, 
-                          fontSize: '13px', 
+                        <p style={{
+                          margin: 0,
+                          fontSize: '13px',
                           color: '#6B7280',
                           fontFamily: 'monospace',
                           overflow: 'hidden',
@@ -587,8 +587,8 @@ function AdminDashboard() {
                     </div>
 
                     {/* User's Devices - Responsive Table */}
-{/* User's Devices - Scrollable Table */}
-                    <div style={{ 
+                    {/* User's Devices - Scrollable Table */}
+                    <div style={{
                       overflowX: 'auto',
                       WebkitOverflowScrolling: 'touch',
                       borderRadius: '8px',
@@ -617,11 +617,10 @@ function AdminDashboard() {
                                 </span>
                               </td>
                               <td>
-                                <span className={`admin-type-badge ${
-                                  device.bag_type === 'dual-zone' ? 'admin-type-dual' : 
-                                  device.bag_type === 'cooling-only' ? 'admin-type-cooler' : 
-                                  'admin-type-heating'
-                                }`}>
+                                <span className={`admin-type-badge ${device.bag_type === 'dual-zone' ? 'admin-type-dual' :
+                                    device.bag_type === 'cooling-only' ? 'admin-type-cooler' :
+                                      'admin-type-heating'
+                                  }`}>
                                   {getBagTypeDisplay(device.bag_type)}
                                 </span>
                               </td>
@@ -632,12 +631,12 @@ function AdminDashboard() {
                               </td>
                               <td>{device.battery_charge_level?.toFixed(0) || 0}%</td>
                               <td>
-                                {device.bag_type !== 'cooling-only' 
+                                {device.bag_type !== 'cooling-only'
                                   ? `${device.hot_zone_current_temp?.toFixed(1) || 'N/A'}°C`
                                   : '-'}
                               </td>
                               <td>
-                                {device.bag_type !== 'heating-only' 
+                                {device.bag_type !== 'heating-only'
                                   ? `${device.cold_zone_current_temp?.toFixed(1) || 'N/A'}°C`
                                   : '-'}
                               </td>
@@ -693,11 +692,10 @@ function AdminDashboard() {
                           </span>
                         </td>
                         <td>
-                          <span className={`admin-type-badge ${
-                            device.bag_type === 'dual-zone' ? 'admin-type-dual' : 
-                            device.bag_type === 'cooling-only' ? 'admin-type-cooler' :
-                            'admin-type-heating'
-                          }`}>
+                          <span className={`admin-type-badge ${device.bag_type === 'dual-zone' ? 'admin-type-dual' :
+                              device.bag_type === 'cooling-only' ? 'admin-type-cooler' :
+                                'admin-type-heating'
+                            }`}>
                             {getBagTypeDisplay(device.bag_type)}
                           </span>
                         </td>
@@ -713,12 +711,12 @@ function AdminDashboard() {
                         </td>
                         <td className="hide-mobile">{device.battery_charge_level?.toFixed(0) || 0}%</td>
                         <td className="hide-mobile">
-                          {device.bag_type !== 'cooling-only' 
+                          {device.bag_type !== 'cooling-only'
                             ? `${device.hot_zone_current_temp?.toFixed(1) || 'N/A'}°C`
                             : '-'}
                         </td>
                         <td className="hide-mobile">
-                          {device.bag_type !== 'heating-only' 
+                          {device.bag_type !== 'heating-only'
                             ? `${device.cold_zone_current_temp?.toFixed(1) || 'N/A'}°C`
                             : '-'}
                         </td>
@@ -741,13 +739,13 @@ function AdminDashboard() {
           <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
               <h2 className="admin-modal-title">Add New Device</h2>
-              <button 
-                className="admin-modal-close" 
+              <button
+                className="admin-modal-close"
                 onClick={() => setShowAddDeviceModal(false)}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18"/>
-                  <line x1="6" y1="6" x2="18" y2="18"/>
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
