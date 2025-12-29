@@ -8,6 +8,8 @@ import { useAdminAuth } from "./contexts/AdminAuthContext";
 import "./AdminDashboard.css";
 import axios from "axios";
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+
 function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [devices, setDevices] = useState([]);
@@ -62,7 +64,7 @@ function AdminDashboard() {
       // Fetch all users with admin passkey
       console.log('👥 Fetching users from /auth/users endpoint...');
       try {
-        const usersRes = await axios.get('http://localhost:4000/auth/users', {
+        const usersRes = await axios.get(`${API_BASE_URL}/auth/users`, {
           headers: {
             'x-admin-passkey': adminPasskey
           }
@@ -169,7 +171,7 @@ function AdminDashboard() {
   
     try {
       // Use the simple endpoint
-      await axios.post('http://localhost:4000/admin/add-device', {
+      await axios.post(`${API_BASE_URL}/admin/add-device`, {
         name: newDevice.name,
         device_code: newDevice.device_code,
         bag_type: newDevice.bag_type,

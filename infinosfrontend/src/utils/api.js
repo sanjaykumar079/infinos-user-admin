@@ -20,7 +20,8 @@ const getApiBaseUrl = () => {
   }
   
   // Development - use localhost
-  return process.env.REACT_APP_API_URL || 'http://localhost:4000';
+  return process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -55,8 +56,9 @@ api.interceptors.request.use(
           config.headers['x-admin-passkey'] = adminPasskey;
         }
       } else {
-        // User routes
+        // User routes - ADD TOKEN HERE
         const accessToken = await authHelpers.getAccessToken();
+        console.log('🔑 Token:', accessToken ? 'Present' : 'Missing'); // Debug log
         if (accessToken) {
           config.headers.Authorization = `Bearer ${accessToken}`;
         }

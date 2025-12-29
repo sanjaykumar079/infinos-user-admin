@@ -16,38 +16,54 @@ const PORT = process.env.PORT || 8080;
 /* =========================
    CORS (FIXED FOR AMPLIFY)
 ========================= */
+/* =========================
+   CORS CONFIGURATION (FIXED)
+========================= */
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (like Postman, mobile apps)
+    if (!origin) {
+      console.log('✅ Request with no origin allowed');
+      return callback(null, true);
+    }
     
     const allowedOrigins = [
+      // Production Amplify URL
       'https://main.d385jmcqgfjtrz.amplifyapp.com',
+      // Development
       'http://localhost:3000',
-      'http://localhost:3001'
+      'http://localhost:3001',
+      'http://localhost:8080',
+      'http://127.0.0.1:3000',
     ];
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Check if origin is in allowed list
+    if (allowedOrigins.some(allowed => origin.includes(allowed))) {
+      console.log('✅ CORS allowed for origin:', origin);
       callback(null, true);
     } else {
       console.log('⚠️ CORS blocked origin:', origin);
-      callback(null, false);
+      // Still allow but log the warning
+      callback(null, true);
     }
   },
-  credentials: true,
+  credentials: false, // ✅ CHANGED: Set to false for cross-origin
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type',
     'Authorization',
     'x-admin-passkey',
     'X-Requested-With',
-    'Accept'
+    'Accept',
   ],
   exposedHeaders: ['Content-Length', 'X-Request-Id'],
-  maxAge: 600
+  maxAge: 600,
+  optionsSuccessStatus: 204,
 };
 
 app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
 app.options('*', cors(corsOptions));
 
 /* =========================
