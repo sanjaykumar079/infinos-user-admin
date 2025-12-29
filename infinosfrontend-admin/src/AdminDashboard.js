@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { deviceAPI } from "./utils/api";
+import { deviceAPI } from "../../infinosfrontend/src/utils/api";
 import { useAdminAuth } from "./contexts/AdminAuthContext";
 import "./AdminDashboard.css";
 import axios from "axios";
