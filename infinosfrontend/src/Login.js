@@ -1090,7 +1090,7 @@ function Login() {
 
             {/* Footer */}
             <div className="form-footer-modern">
-              <button
+              {/* <button
                 className="admin-link-modern"
                 onClick={() => navigate('/admin/login')}
                 disabled={loading}
@@ -1100,7 +1100,7 @@ function Login() {
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" strokeWidth="2"/>
                 </svg>
                 Admin Access
-              </button>
+              </button> */}
 
               <p className="terms-text">
                 By continuing, you agree to our{" "}

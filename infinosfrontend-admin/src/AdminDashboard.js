@@ -170,12 +170,12 @@ function AdminDashboard() {
     setAddDeviceLoading(true);
 
     try {
-      // Use the simple endpoint
-      await axios.post(`${API_BASE_URL}/admin/add-device`, {
+      // Use the device router endpoint
+      await axios.post(`${API_BASE_URL}/device/admin/add-device`, {
         name: newDevice.name,
         device_code: newDevice.device_code,
         bag_type: newDevice.bag_type,
-        admin_key: 'infinos-admin-2024' // Pass in body
+        admin_key: 'INFINOS2025ADMIN' // Must match backend ADMIN_PASSKEY
       });
 
       setNewDevice({ name: "", device_code: "", bag_type: "dual-zone" });
@@ -618,8 +618,8 @@ function AdminDashboard() {
                               </td>
                               <td>
                                 <span className={`admin-type-badge ${device.bag_type === 'dual-zone' ? 'admin-type-dual' :
-                                    device.bag_type === 'cooling-only' ? 'admin-type-cooler' :
-                                      'admin-type-heating'
+                                  device.bag_type === 'cooling-only' ? 'admin-type-cooler' :
+                                    'admin-type-heating'
                                   }`}>
                                   {getBagTypeDisplay(device.bag_type)}
                                 </span>
@@ -693,8 +693,8 @@ function AdminDashboard() {
                         </td>
                         <td>
                           <span className={`admin-type-badge ${device.bag_type === 'dual-zone' ? 'admin-type-dual' :
-                              device.bag_type === 'cooling-only' ? 'admin-type-cooler' :
-                                'admin-type-heating'
+                            device.bag_type === 'cooling-only' ? 'admin-type-cooler' :
+                              'admin-type-heating'
                             }`}>
                             {getBagTypeDisplay(device.bag_type)}
                           </span>

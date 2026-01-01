@@ -1,36 +1,18 @@
 // FILE: infinosfrontend/src/App.js
-// REPLACE THE ENTIRE FILE WITH THIS
+// User Frontend - Admin routes removed (now in separate infinosfrontend-admin project)
 
 import { useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { supabase } from "./supabaseClient";
-import { AdminAuthProvider, useAdminAuth } from "./contexts/AdminAuthContext";
 
 import "./App.css";
 
-// Pages
+// User Pages
 import Home from "./Home";
 import Devices from "./Devices";
 import BagControl from "./BagControl";
 import Login from "./Login";
 import Dashboard from "./Dashboard";
-import AdminLogin from "./AdminLogin";
-import AdminDashboard from "./AdminDashboard";
-
-// Admin Protected Route Component
-function AdminProtectedRoute({ children }) {
-  const { isAdminAuthenticated, loading } = useAdminAuth();
-
-  if (loading) {
-    return <div className="loading">Loading...</div>;
-  }
-
-  if (!isAdminAuthenticated) {
-    return <Navigate to="/admin/login" replace />;
-  }
-
-  return children;
-}
 
 function AppContent() {
   const [user, setUser] = useState(null);
@@ -58,17 +40,6 @@ function AppContent() {
   return (
     <Router>
       <Routes>
-        {/* Admin Routes */}
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route 
-          path="/admin/dashboard" 
-          element={
-            <AdminProtectedRoute>
-              <AdminDashboard />
-            </AdminProtectedRoute>
-          } 
-        />
-
         {/* User Routes */}
         {!user ? (
           <Route path="*" element={<Login />} />
@@ -102,9 +73,7 @@ function Logout({ setUser }) {
 function App() {
   return (
     <div className="App">
-      <AdminAuthProvider>
-        <AppContent />
-      </AdminAuthProvider>
+      <AppContent />
     </div>
   );
 }

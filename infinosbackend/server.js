@@ -16,57 +16,32 @@ const PORT = process.env.PORT || 8080;
 /* =========================
    ✅ FIXED CORS CONFIGURATION
 ========================= */
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, curl)
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    const allowedOrigins = [
-      // Production Amplify URL
-      'https://main.d385jmcqgfjtrz.amplifyapp.com',
-      // Development
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://127.0.0.1:3000',
-    ];
-    
-    // Check if origin is allowed
-    const isAllowed = allowedOrigins.some(allowed => 
-      origin.includes(allowed) || allowed.includes(origin)
-    );
-    
-    if (isAllowed) {
-      console.log('✅ CORS allowed for origin:', origin);
-      callback(null, true);
-    } else {
-      console.log('⚠️ CORS allowed (permissive) for origin:', origin);
-      // Still allow but log warning
-      callback(null, true);
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'X-Admin-Passkey',
-    'X-Requested-With',
-    'Accept',
-    'Origin',
-  ],
-  exposedHeaders: ['Content-Length', 'X-Request-Id'],
-  maxAge: 86400, // 24 hours
-  optionsSuccessStatus: 204,
-};
+   const corsOptions = {
+     origin: function (origin, callback) {
+       const allowedOrigins = [
+         'https://main.d385jmcqgfjtrz.amplifyapp.com',
+         'https://admin.d385jmcqgfjtrz.amplifyapp.com',
+         'https://infinostech.site',
+         'https://www.infinostech.site',
+         'https://admin.infinostech.site',
+       ];
+       
+       if (!origin || allowedOrigins.some(allowed => origin.includes(allowed))) {
+         callback(null, true);
+       } else {
+         callback(null, false);
+       }
+     },
+     credentials: true,
+     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+     allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Passkey'],
+   };
 
 // ✅ Apply CORS before any routes
 app.use(cors(corsOptions));
 
 // ✅ Handle preflight requests explicitly
 app.options('*', cors(corsOptions));
-
 /* =========================
    BODY PARSERS
 ========================= */
