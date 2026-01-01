@@ -1,12 +1,13 @@
 version: 1
 
 applications:
+  # USER FRONTEND
   - appRoot: infinosfrontend
     frontend:
       phases:
         preBuild:
           commands:
-            - npm ci || npm install
+            - npm ci
         build:
           commands:
             - npm run build
@@ -16,14 +17,15 @@ applications:
           - '**/*'
       cache:
         paths:
-          - node_modules/**/*
+          - node_modules/**
 
+  # ADMIN FRONTEND
   - appRoot: infinosfrontend-admin
     frontend:
       phases:
         preBuild:
           commands:
-            - npm ci || npm install
+            - npm ci
         build:
           commands:
             - npm run build
@@ -33,4 +35,4 @@ applications:
           - '**/*'
       cache:
         paths:
-          - node_modules/**/*
+          - node_modules/**
