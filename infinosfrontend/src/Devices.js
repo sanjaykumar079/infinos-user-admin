@@ -1,5 +1,5 @@
 // FILE: infinosfrontend/src/Devices.js
-// FIXED - Show "Cold" for cooling-only bags and categorize by user
+// FIXED - Properly pass user.id to fetchDevices
 
 import "./Devices.css";
 import { useEffect, useState } from "react";
@@ -26,13 +26,20 @@ function Devices() {
       try {
         const { data: { user }, error } = await supabase.auth.getUser();
         if (error) throw error;
-        setUser(user);
-
-        if (user) {
-          await fetchDevices(user.id);
+        
+        if (!user) {
+          console.error("❌ No user found");
+          setLoading(false);
+          return;
         }
+
+        console.log("✅ User found:", user.id);
+        setUser(user);
+        
+        // ✅ FIX: Pass user.id directly here
+        await fetchDevices(user.id);
       } catch (err) {
-        console.error("Error fetching devices:", err);
+        console.error("❌ Error in init:", err);
       } finally {
         setLoading(false);
       }
@@ -42,10 +49,12 @@ function Devices() {
 
   const fetchDevices = async (userId) => {
     try {
-      const res = await deviceAPI.getMyDevices(userId || user.id);
+      console.log("📱 Fetching devices for user:", userId);
+      const res = await deviceAPI.getMyDevices(userId);
+      console.log("✅ Devices fetched:", res.data);
       setDevices(res.data);
     } catch (err) {
-      console.error("Error fetching devices:", err);
+      console.error("❌ Error fetching devices:", err);
     }
   };
 
@@ -53,7 +62,7 @@ function Devices() {
     event.stopPropagation();
     try {
       await deviceAPI.updateDevice(device._id, !device.status);
-      await fetchDevices();
+      await fetchDevices(user.id);
     } catch (err) {
       console.error("Error updating device:", err);
     }
@@ -64,7 +73,7 @@ function Devices() {
     try {
       if (!device.status) {
         await deviceAPI.updateDevice(device._id, true);
-        await fetchDevices();
+        await fetchDevices(user.id);
       }
 
       localStorage.setItem("deviceid", device._id);
@@ -363,7 +372,7 @@ function Devices() {
           onClose={() => setShowClaimModal(false)}
           onDeviceClaimed={() => {
             setShowClaimModal(false);
-            fetchDevices();
+            fetchDevices(user.id);
           }}
         />
       )}
