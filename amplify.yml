@@ -1,24 +1,48 @@
+# version: 1
+# applications:
+#   - appRoot: .
+#     frontend:
+#       phases:
+#         preBuild:
+#           commands:
+#             - npm ci
+#         build:
+#           commands:
+#             - |
+#               if [ "$AWS_BRANCH" = "main" ]; then
+#                 cd infinosfrontend
+#                 npm ci
+#                 npm run build
+#               else
+#                 cd infinosfrontend-admin
+#                 npm ci
+#                 npm run build
+#               fi
+#       artifacts:
+#         baseDirectory: |
+#           if [ "$AWS_BRANCH" = "main" ]; then
+#             infinosfrontend/dist
+#           else
+#             infinosfrontend-admin/dist
+#           fi
+#         files:
+#           - '**/*'
+#       cache:
+#         paths:
+#           - node_modules/**/*
 version: 1
 frontend:
   phases:
     preBuild:
       commands:
-        - |
-          if [ "$AWS_BRANCH" = "main" ]; then
-            cd infinosfrontend
-          else
-            cd infinosfrontend-admin
-          fi
-        - npm install
+        - npm ci
     build:
       commands:
         - npm run build
   artifacts:
-    baseDirectory: |
-      $([[ "$AWS_BRANCH" = "main" ]] && echo "infinosfrontend/build" || echo "infinosfrontend-admin/build")
+    baseDirectory: build
     files:
       - '**/*'
   cache:
     paths:
-      - |
-        $([[ "$AWS_BRANCH" = "main" ]] && echo "infinosfrontend/node_modules/**/*" || echo "infinosfrontend-admin/node_modules/**/*")
+      - node_modules/**/*
