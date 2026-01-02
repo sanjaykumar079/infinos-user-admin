@@ -1,18 +1,24 @@
-# amplify.yml (in project root: infinos-user-admin/)
 version: 1
 frontend:
   phases:
     preBuild:
       commands:
-        - cd infinosfrontend-admin
+        - |
+          if [ "$AWS_BRANCH" = "main" ]; then
+            cd infinosfrontend
+          else
+            cd infinosfrontend-admin
+          fi
         - npm install
     build:
       commands:
         - npm run build
   artifacts:
-    baseDirectory: infinosfrontend-admin/build
+    baseDirectory: |
+      $([[ "$AWS_BRANCH" = "main" ]] && echo "infinosfrontend/build" || echo "infinosfrontend-admin/build")
     files:
       - '**/*'
   cache:
     paths:
-      - infinosfrontend-admin/node_modules/**/*
+      - |
+        $([[ "$AWS_BRANCH" = "main" ]] && echo "infinosfrontend/node_modules/**/*" || echo "infinosfrontend-admin/node_modules/**/*")
