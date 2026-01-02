@@ -1,0 +1,18 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - echo "👑 Building ADMIN frontend (admin branch)"
+        - cd infinosfrontend-admin
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: infinosfrontend-admin/build
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - infinosfrontend-admin/node_modules/**/*
