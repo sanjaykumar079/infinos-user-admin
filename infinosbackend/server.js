@@ -1,4 +1,4 @@
-// infinosbackend/server.js - FIXED VERSION WITH PROPER CORS
+// infinosbackend/server.js - FIXED VERSION WITH ADMIN CORS
 
 require('dotenv').config();
 const express = require('express');
@@ -14,34 +14,35 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 /* =========================
-   ✅ FIXED CORS CONFIGURATION
+   ✅ FIXED CORS CONFIGURATION - INCLUDES ADMIN APP
 ========================= */
-   const corsOptions = {
-     origin: function (origin, callback) {
-       const allowedOrigins = [
-         'https://main.d385jmcqgfjtrz.amplifyapp.com',
-         'https://admin.d385jmcqgfjtrz.amplifyapp.com',
-         'https://infinostech.site',
-         'https://www.infinostech.site',
-         'https://admin.infinostech.site',
-       ];
-       
-       if (!origin || allowedOrigins.some(allowed => origin.includes(allowed))) {
-         callback(null, true);
-       } else {
-         callback(null, false);
-       }
-     },
-     credentials: true,
-     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-     allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Passkey'],
-   };
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://infinostech.site',
+      'https://www.infinostech.site',
+      'https://admin.infinostech.site',
+      'https://main.d385jmcqgfjtrz.amplifyapp.com',
+      'https://admin.d385jmcqgfjtrz.amplifyapp.com',
+    ];
+    
+    if (!origin || allowedOrigins.some(allowed => origin.includes(allowed))) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Passkey'],
+};
 
 // ✅ Apply CORS before any routes
 app.use(cors(corsOptions));
 
 // ✅ Handle preflight requests explicitly
 app.options('*', cors(corsOptions));
+
 /* =========================
    BODY PARSERS
 ========================= */
@@ -55,6 +56,7 @@ app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.path}`);
   console.log('   Origin:', req.headers.origin || 'none');
   console.log('   Auth:', req.headers.authorization ? 'present' : 'none');
+  console.log('   Admin:', req.headers['x-admin-passkey'] ? 'present' : 'none');
   next();
 });
 
