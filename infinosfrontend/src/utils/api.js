@@ -8,17 +8,17 @@ const getApiBaseUrl = () => {
   if (process.env.NODE_ENV === 'production') {
     // Use the environment variable - should be set in Amplify
     const backendUrl = process.env.REACT_APP_API_URL;
-    
+
     if (!backendUrl) {
       console.error('⚠️ REACT_APP_API_URL not set!');
       // Fallback to your EB URL
-      return 'http://infinos-prod-env.eba-jgg4gcm3.ap-south-1.elasticbeanstalk.com';
+      return 'https://api.infinostech.site';
     }
-    
+
     console.log('✅ Using backend URL:', backendUrl);
     return backendUrl;
   }
-  
+
   // Development - use localhost
   return process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
@@ -44,12 +44,12 @@ api.interceptors.request.use(
   async (config) => {
     try {
       console.log(`📤 ${config.method?.toUpperCase()} ${config.url}`);
-      
+
       // Admin routes
-      const isAdminRoute = config.url?.includes('/admin') || 
-                          config.url?.includes('admin-stats') || 
-                          config.url?.includes('all-devices');
-      
+      const isAdminRoute = config.url?.includes('/admin') ||
+        config.url?.includes('admin-stats') ||
+        config.url?.includes('all-devices');
+
       if (isAdminRoute) {
         const adminPasskey = localStorage.getItem('admin_passkey');
         if (adminPasskey) {
@@ -135,38 +135,38 @@ api.interceptors.response.use(
 export const deviceAPI = {
   // Health check
   healthCheck: () => api.get('/health'),
-  
+
   // User endpoints
   getMyDevices: (ownerId) => {
     console.log('📱 Fetching devices for:', ownerId);
     return api.get('/device/my-devices', { params: { ownerId } });
   },
-  
+
   getSummary: (ownerId) => {
     console.log('📊 Fetching summary for:', ownerId);
     return api.get('/device/summary', { params: { ownerId } });
   },
-  
+
   getDevice: (deviceId) => {
     console.log('📱 Fetching device:', deviceId);
     return api.get('/device/get_device', { params: { device_id: deviceId } });
   },
-  
+
   verifyDeviceCode: (deviceCode) => {
     console.log('🔍 Verifying code:', deviceCode);
     return api.get('/device/verify-code', { params: { deviceCode } });
   },
-  
+
   claimDevice: (deviceCode, ownerId, deviceName) => {
     console.log('🎯 Claiming device:', { deviceCode, ownerId, deviceName });
     return api.post('/device/claim', { deviceCode, ownerId, deviceName });
   },
-  
+
   updateDevice: (deviceId, status) => {
     console.log('🔄 Updating device:', { deviceId, status });
     return api.post('/device/update_device', { device_id: deviceId, status });
   },
-  
+
   updateHotZoneSettings: (deviceId, targetTemp, heaterOn, fanOn) => {
     console.log('🔥 Updating hot zone:', { deviceId, targetTemp, heaterOn, fanOn });
     return api.post('/device/update_hot_zone_settings', {
@@ -176,7 +176,7 @@ export const deviceAPI = {
       fan_on: fanOn,
     });
   },
-  
+
   updateColdZoneSettings: (deviceId, targetTemp, coolerOn, fanOn) => {
     console.log('❄️ Updating cold zone:', { deviceId, targetTemp, coolerOn, fanOn });
     return api.post('/device/update_cold_zone_settings', {
@@ -186,13 +186,13 @@ export const deviceAPI = {
       fan_on: fanOn,
     });
   },
-  
+
   // Admin endpoints
   getAllDevices: () => {
     console.log('👑 Fetching all devices (admin)');
     return api.get('/device/all-devices');
   },
-  
+
   getAdminStats: () => {
     console.log('📊 Fetching admin stats');
     return api.get('/device/admin-stats');

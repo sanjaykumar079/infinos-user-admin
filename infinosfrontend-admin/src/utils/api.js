@@ -9,7 +9,7 @@ const getApiBaseUrl = () => {
 
         if (!backendUrl) {
             console.error('⚠️ REACT_APP_API_URL not set!');
-            return 'http://infinos-prod-env.eba-jgg4gcm3.ap-south-1.elasticbeanstalk.com';
+            return 'https://api.infinostech.site';
         }
 
         console.log('✅ Using backend URL:', backendUrl);
