@@ -24,8 +24,9 @@ const corsOptions = {
       'https://admin.infinostech.site',
       'https://main.d385jmcqgfjtrz.amplifyapp.com',
       'https://admin.d385jmcqgfjtrz.amplifyapp.com',
+      'localhost',
     ];
-    
+
     if (!origin || allowedOrigins.some(allowed => origin.includes(allowed))) {
       callback(null, true);
     } else {

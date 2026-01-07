@@ -219,7 +219,7 @@
   
   .navbar-title {
     display: none;
-  }
+  } ::selection
   
   .user-name {
     display: none;
