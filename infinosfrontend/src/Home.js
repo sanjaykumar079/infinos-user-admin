@@ -96,8 +96,8 @@ function Home() {
 
           <nav className="navbar-menu">
             <a href="#home" className="nav-link active">HOME</a>
-            <a href="#about" className="nav-link">ABOUT US</a>
-            <a href="#products" className="nav-link">OUR PRODUCTS</a>
+            <a href="#about" className="nav-link">CHALLENGE</a>
+            <a href="#products" className="nav-link">SOLUTION</a>
             <a href="#gallery" className="nav-link">GALLERY</a>
             <a href="#contact" className="nav-link">CONTACT</a>
           </nav>
@@ -127,8 +127,8 @@ function Home() {
                 Home
               </button>
               <a href="#home" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>HOME</a>
-              <a href="#about" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>ABOUT US</a>
-              <a href="#products" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>OUR PRODUCTS</a>
+              <a href="#about" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>CHALLENGE</a>
+              <a href="#products" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>SOLUTION</a>
               <a href="#gallery" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>GALLERY</a>
               <a href="#contact" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>CONTACT</a>
               <div className="mobile-menu-divider"></div>
