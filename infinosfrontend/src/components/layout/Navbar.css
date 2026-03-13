@@ -25,6 +25,7 @@
   gap: var(--space-3);
   cursor: pointer;
   transition: opacity var(--transition-base);
+  z-index: 11;
 }
 
 .navbar-brand:hover {
@@ -43,6 +44,29 @@
   color: var(--gray-900);
 }
 
+/* ================= HAMBURGER MENU (Hidden on Desktop) ================= */
+.navbar-hamburger {
+  display: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2);
+  color: var(--gray-600);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-base);
+  z-index: 11;
+}
+
+.navbar-hamburger:hover {
+  color: var(--infinos-orange-600);
+  background: var(--infinos-orange-50);
+}
+
+.navbar-hamburger:active {
+  transform: scale(0.95);
+}
+
+/* ================= MENU ================= */
 .navbar-menu {
   display: flex;
   align-items: center;
@@ -63,6 +87,7 @@
   border: none;
   cursor: pointer;
   transition: all var(--transition-base);
+  white-space: nowrap;
 }
 
 .navbar-link:hover {
@@ -70,10 +95,32 @@
   background: var(--infinos-orange-50);
 }
 
-.navbar-link svg {
-  stroke-width: 2;
+.navbar-link-active {
+  color: var(--infinos-orange-600);
+  background: var(--infinos-orange-50);
+  font-weight: 600;
 }
 
+.navbar-link svg {
+  stroke-width: 2;
+  flex-shrink: 0;
+}
+
+.navbar-link-danger {
+  color: var(--error);
+}
+
+.navbar-link-danger:hover {
+  background: var(--error-light);
+}
+
+/* Mobile-only elements (hidden on desktop) */
+.navbar-mobile-divider,
+.navbar-mobile-actions {
+  display: none;
+}
+
+/* ================= ACTIONS ================= */
 .navbar-actions {
   display: flex;
   align-items: center;
@@ -208,20 +255,147 @@
   margin: var(--space-2) 0;
 }
 
+/* ================= MOBILE OVERLAY ================= */
+.navbar-overlay {
+  display: none;
+}
+
+/* ================= RESPONSIVE - TABLET & MOBILE ================= */
 @media (max-width: 768px) {
   .navbar-container {
     padding: 0 var(--space-4);
+    gap: var(--space-4);
   }
-  
-  .navbar-menu {
+
+  /* Show hamburger menu */
+  .navbar-hamburger {
+    display: flex;
+  }
+
+  /* Hide desktop user actions */
+  .navbar-actions {
     display: none;
   }
-  
+
+  /* Hide title on small screens */
   .navbar-title {
     display: none;
-  } ::selection
-  
-  .user-name {
-    display: none;
+  }
+
+  /* Convert menu to mobile dropdown */
+  .navbar-menu {
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    background: white;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin-left: 0;
+    padding: 0;
+    border-bottom: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-lg);
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+  }
+
+  .navbar-menu-open {
+    max-height: calc(100vh - 64px);
+    opacity: 1;
+    padding: var(--space-4);
+    overflow-y: auto;
+  }
+
+  .navbar-link {
+    width: 100%;
+    justify-content: flex-start;
+    padding: var(--space-4) var(--space-4);
+    font-size: 1rem;
+    border-radius: var(--radius-md);
+  }
+
+  /* Show mobile divider */
+  .navbar-mobile-divider {
+    display: block;
+    height: 1px;
+    background: var(--gray-200);
+    margin: var(--space-4) 0;
+  }
+
+  /* Show mobile actions */
+  .navbar-mobile-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Mobile overlay backdrop */
+  .navbar-overlay {
+    display: block;
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 9;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* ================= RESPONSIVE - SMALL MOBILE ================= */
+@media (max-width: 480px) {
+  .navbar-container {
+    height: 56px;
+    padding: 0 var(--space-3);
+  }
+
+  .navbar-logo {
+    height: 32px;
+  }
+
+  .navbar-menu {
+    top: 56px;
+  }
+
+  .navbar-overlay {
+    top: 56px;
+  }
+
+  .navbar-link {
+    padding: var(--space-3) var(--space-3);
+    font-size: 0.9375rem;
+  }
+
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8125rem;
+  }
+}
+
+/* ================= ANIMATIONS ================= */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
