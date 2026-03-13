@@ -1,0 +1,158 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - echo "🚀 Building USER frontend (main branch)"
+        - cd infinosfrontend
+        - npm install
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: infinosfrontend/build
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - infinosfrontend/node_modules/**/*
+      
+      # version: 1
+# applications:
+#   - appRoot: .
+#     frontend:
+#       phases:
+#         preBuild:
+#           commands:
+#             - npm ci
+#         build:
+#           commands:
+#             - |
+#               if [ "$AWS_BRANCH" = "main" ]; then
+#                 cd infinosfrontend
+#                 npm ci
+#                 npm run build
+#               else
+#                 cd infinosfrontend-admin
+#                 npm ci
+#                 npm run build
+#               fi
+#       artifacts:
+#         baseDirectory: |
+#           if [ "$AWS_BRANCH" = "main" ]; then
+#             infinosfrontend/dist
+#           else
+#             infinosfrontend-admin/dist
+#           fi
+#         files:
+#           - '**/*'
+#       cache:
+#         paths:
+#           - node_modules/**/*
+# =====================================================
+# version: 1
+# applications:
+#   # User Frontend Application (main branch)
+#   - appRoot: infinosfrontend
+#     frontend:
+#       phases:
+#         preBuild:
+#           commands:
+#             - npm ci
+#         build:
+#           commands:
+#             - npm run build
+#       artifacts:
+#         baseDirectory: build
+#         files:
+#           - '**/*'
+#       cache:
+#         paths:
+#           - node_modules/**/*
+#     # Only build user frontend on main branch
+#     buildSpec: |
+#       version: 1
+#       applications:
+#         - frontend:
+#             phases:
+#               preBuild:
+#                 commands:
+#                   - cd infinosfrontend
+#                   - npm ci
+#               build:
+#                 commands:
+#                   - npm run build
+#             artifacts:
+#               baseDirectory: infinosfrontend/build
+#               files:
+#                 - '**/*'
+#             cache:
+#               paths:
+#                 - infinosfrontend/node_modules/**/*
+#     # Match only main branch
+#     branchName: main
+    
+#   # Admin Frontend Application (admin branch)
+#   - appRoot: infinosfrontend-admin
+#     frontend:
+#       phases:
+#         preBuild:
+#           commands:
+#             - npm ci
+#         build:
+#           commands:
+#             - npm run build
+#       artifacts:
+#         baseDirectory: build
+#         files:
+#           - '**/*'
+#       cache:
+#         paths:
+#           - node_modules/**/*
+#     # Only build admin frontend on admin branch
+#     buildSpec: |
+#       version: 1
+#       applications:
+#         - frontend:
+#             phases:
+#               preBuild:
+#                 commands:
+#                   - cd infinosfrontend-admin
+#                   - npm ci
+#               build:
+#                 commands:
+#                   - npm run build
+#             artifacts:
+#               baseDirectory: infinosfrontend-admin/build
+#               files:
+#                 - '**/*'
+#             cache:
+#               paths:
+#                 - infinosfrontend-admin/node_modules/**/*
+#     # Match only admin branch
+#     branchName: admin
+
+# version: 1
+# frontend:
+#   phases:
+#     preBuild:
+#       commands:
+#         - |
+#           if [ "$AWS_BRANCH" = "main" ]; then
+#             echo "🚀 Building USER frontend"
+#             cd infinosfrontend
+#           else
+#             echo "👑 Building ADMIN frontend"
+#             cd infinosfrontend-admin
+#           fi
+#         - npm ci
+#     build:
+#       commands:
+#         - npm run build
+#   artifacts:
+#     baseDirectory: build
+#     files:
+#       - '**/*'
+#   cache:
+#     paths:
+#       - node_modules/**/*
